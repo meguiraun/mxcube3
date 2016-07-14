@@ -146,7 +146,7 @@ def motor_event_callback(*args, **kwargs):
 
     ## sending all motors position/status, and the current centred positions
     msg = {'Signal': signal,'Message': signal, 'Motors':motors_info, 'CentredPositions': aux, 'Data': args[0] if len(args) ==1 else args}
-    logging.getLogger('HWR').debug('[MOTOR CALLBACK]   ' + str(msg))
+    #logging.getLogger('HWR').debug('[MOTOR CALLBACK]   ' + str(msg))
     try:
         socketio.emit('Motors', msg, namespace='/hwr')
     except Exception:
@@ -154,7 +154,7 @@ def motor_event_callback(*args, **kwargs):
 
     try:
         msg = { "message": sender +':'+signal, "severity": 'INFO', "timestamp":time.asctime(), "logger":'HWR', "stack_trace":'' }
-        socketio.emit('log_record', msg, namespace='/logging')
+        #socketio.emit('log_record', msg, namespace='/logging')
     except Exception:
         logging.getLogger("HWR").error('error sending message: %s'+str(msg))
 

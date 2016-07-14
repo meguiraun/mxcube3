@@ -1,6 +1,6 @@
 from mxcube3 import app as mxcube
 from mxcube3 import socketio
-from flask import session, request, Response, jsonify
+from flask import session, request, Response, jsonify, send_from_directory, safe_join, url_for, redirect
 from .Utils import *
 import time
 import logging
@@ -607,7 +607,13 @@ def updateMethod(sampleid, methodid):
     resp = jsonify({'QueueId': methodid})
     resp.status_code = 200
     return resp
-  
+
+@mxcube.route("/mxcube/api/v0.1/results/<int:number>")
+def serve_char_result(number):
+    print "serving resultss..", number
+    return redirect(url_for('static', filename='char' + str(number) + '/index.html'))
+ # ##----QUEUE ACTIONS----##
+
 @mxcube.route("/mxcube/api/v0.1/queue/dc", methods=['GET'])
 def get_default_dc_params():
     """

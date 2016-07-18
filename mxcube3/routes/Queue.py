@@ -461,13 +461,16 @@ def addCharacterisation(id):
     characEntry.set_queue_controller(qm)
     ## char has two taskgroup levels so that the diff plan keeps under the same grandparent
     taskNode1 = qmo.TaskGroup()
-    taskNode2 = qmo.TaskGroup()
+    #taskNode2 = qmo.TaskGroup()
     task1Entry = qe.TaskGroupQueueEntry()
-    task2Entry = qe.TaskGroupQueueEntry()
+    task1Entry._view = Mock()
+    #task2Entry = qe.TaskGroupQueueEntry()
     task1Entry.set_data_model(taskNode1)
-    task2Entry.set_data_model(taskNode2)
+    #task2Entry.set_data_model(taskNode2)
 
     characNode.reference_image_collection.acquisitions[0].acquisition_parameters.set_from_dict(params)
+    characNode.reference_image_collection.acquisitions[0].path_template.directory = os.path.join(mxcube.session.get_base_image_directory(), params['path'])
+
     #characNode.characterisation_parameters.set_from_dict(params)
     for k, v in params.items():
         if hasattr(characNode.characterisation_parameters, k):
@@ -483,11 +486,11 @@ def addCharacterisation(id):
     task1Id = mxcube.queue.add_child_at_id(int(id), taskNode1)
     entry.enqueue(task1Entry)
 
-    task2Id = mxcube.queue.add_child_at_id(task1Id, taskNode2)
-    task1Entry.enqueue(task2Entry)
+    #task2Id = mxcube.queue.add_child_at_id(task1Id, taskNode2)
+    #task1Entry.enqueue(task2Entry)
     
-    newNode = mxcube.queue.add_child_at_id(task2Id, characNode)  # add_child does not return id!
-    task2Entry.enqueue(characEntry)
+    newNode = mxcube.queue.add_child_at_id(task1Id, characNode)  # add_child does not return id!
+    task1Entry.enqueue(characEntry)
     characEntry.set_enabled(True)
     characNode.set_enabled(True)
     logging.getLogger('HWR').info('[QUEUE] characterisation added to sample')
@@ -753,5 +756,7 @@ def serializeQueueToJson():
                                 aux[dataModel['_node_id']]['methods'].append({'QueueId': grandGrandChild['_node_id'],'Type': 'Characterisation','Params': grandGrandChild['characterisation_parameters'], 'AcquisitionParams': grandGrandChild['reference_image_collection']['acquisitions'][0]['acquisition_parameters'],'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'html_report': ''}) #grandGrandChild['characterisation_parameters']
                     elif grandChild['py/object'].split('.')[1] == 'DataCollection':
                         aux[dataModel['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'],'Type': 'DataCollection','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['acquisitions'][0]['acquisition_parameters']})
+                    elif grandChild['py/object'].split('.')[1] == 'Characterisation':
+                        aux[dataModel['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'],'Type': 'Characterisation','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['characterisation_parameters']})
                     ## acq limited for now to only one element of the array, so a DataCollection entry only has a single Acquisition , done like this to simplify devel... just belean!
     return aux

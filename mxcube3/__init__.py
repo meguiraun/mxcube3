@@ -32,9 +32,11 @@ cmdline_options, args = opt_parser.parse_args()
 
 socketio = SocketIO()
 app = Flask(__name__, static_url_path='')
+#+app = Flask(__name__, static_folder='static', static_url_path='')
 app.config['SESSION_TYPE'] = "redis"
 app.config['SESSION_KEY_PREFIX'] = "mxcube:session:"
 app.config['SECRET_KEY'] = "nosecretfornow"
+#+app.config['CUSTOM_STATIC_PATH'] = 'char'
 def exception_handler(e):
     err_msg = "Uncaught exception while calling %s" % request.path
     logging.exception(err_msg)

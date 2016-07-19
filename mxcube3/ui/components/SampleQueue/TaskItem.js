@@ -142,7 +142,7 @@ export default class TaskItem extends Component {
 
                 <Button bsSize="sm" onClick={this.showForm}>Change</Button>
                 <Button bsSize="sm" onClick={this.deleteTask}>Delete</Button>
-                <Button bsSize="sm" disabled={data.state !== 2}>Results</Button>
+                <Button bsSize="sm" target="_blank" href="/char1/index.html">Results</Button>
             </form>
           </div>
           </Collapse>

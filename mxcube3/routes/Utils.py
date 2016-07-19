@@ -145,7 +145,6 @@ def my_execute_entry(self, entry):
         mxcube.collect.emit('collectOscillationStarted')
         log = logging.getLogger("user_level_log")
         log.info("Characterising, please wait ...")
-        #logging.getLogger('HWR').info('[COLLECT] collectOscillationStarted')
         time.sleep(2)
         log.info("Characterisation completed.")
         foo = ['collectOscillationFinished', 'collectOscillationFailed', 'warning']
@@ -178,6 +177,7 @@ def my_execute_entry(self, entry):
                 }
         params['path'] = char.characterisation_parameters.path_template.directory
         params['prefix'] = 'DiffPlan'
+#        params['point'] = mxcube.diffractometer.save
         import queue_model_objects_v1 as qmo
         colNode = qmo.DataCollection()
         colEntry = qe.DataCollectionQueueEntry()
@@ -200,6 +200,17 @@ def my_execute_entry(self, entry):
             logging.getLogger('HWR').exception('[QUEUE] datacollection could not be added to sample: Data Collision')
             return Response(status=409)
 
+
+        char_cpos = char.reference_image_collection.acquisitions[0].acquisition_parameters.centred_position.as_dict()
+        log.info(char_cpos)
+        for cpos in mxcube.diffractometer.savedCentredPos:
+            log.info(cpos)
+            char_cpos.pop('zoom')
+            if char_cpos == cpos['motorPositions']:
+                log.info(char_cpos)
+                params['point'] = str(cpos['posId'])
+                log.info("POINT FOUND")
+        
         colNode.acquisitions[0].acquisition_parameters.centred_position = char.reference_image_collection.acquisitions[0].acquisition_parameters.centred_position
 
         colEntry.set_data_model(colNode)
@@ -221,7 +232,15 @@ def my_execute_entry(self, entry):
 
         logging.getLogger('HWR').info('[QUEUE] datacollection added to sample')
         data_json = {'QueueId': colNode._node_id, 'Type': 'DataCollection'}
-        socketio.emit('add_task', {'Sample': node_id, 'QueueId': colNode._node_id, 'json': data_json, 'params': params}, namespace='/hwr')
+        if mxcube.diffractometer.use_sc:    # use sample changer
+            sampleID = str(mxcube.queue.get_node(node_id).location[0])+':'+str(mxcube.queue.get_node(node_id).location[1])
+        else:
+            sampleID = str(mxcube.queue.get_node(node_id).location[1])
+
+        msg = {'sampleQueueID': node_id, 'sampleID': sampleID, 'task': data_json, 'params': params}
+        log.info("Diffraction plan added to the queue: %s" % str(msg))
+
+        socketio.emit('add_task', msg, namespace='/hwr')
     elif isinstance(entry, qe.SampleCentringQueueEntry):
         time.sleep(1)
         mxcube.diffractometer.emit('centringStarted')

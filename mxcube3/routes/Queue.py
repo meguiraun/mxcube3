@@ -592,28 +592,6 @@ def add_characterisation(id):
        data ={ "CharacId": newId}    '''
     # no data received yet
     params = request.get_json()
-<<<<<<< HEAD
-    
-    characNode = qmo.Characterisation()
-    characEntry = qe.CharacterisationGroupQueueEntry()
-    characEntry._view = Mock()
-    characEntry._set_background_color = Mock()
-    characEntry.set_data_model(characNode)
-    characEntry.set_queue_controller(qm)
-    ## char has two taskgroup levels so that the diff plan keeps under the same grandparent
-    taskNode1 = qmo.TaskGroup()
-    #taskNode2 = qmo.TaskGroup()
-    task1Entry = qe.TaskGroupQueueEntry()
-    task1Entry._view = Mock()
-    #task2Entry = qe.TaskGroupQueueEntry()
-    task1Entry.set_data_model(taskNode1)
-    #task2Entry.set_data_model(taskNode2)
-
-    characNode.reference_image_collection.acquisitions[0].acquisition_parameters.set_from_dict(params)
-    characNode.reference_image_collection.acquisitions[0].path_template.directory = os.path.join(mxcube.session.get_base_image_directory(), params['path'])
-
-    #characNode.characterisation_parameters.set_from_dict(params)
-=======
 
     charac_node = qmo.Characterisation()
     charac_entry = qe.CharacterisationGroupQueueEntry()
@@ -630,7 +608,6 @@ def add_characterisation(id):
     task2_entry.set_data_model(task_node2)
 
     charac_node.reference_image_collection.acquisitions[0].acquisition_parameters.set_from_dict(params)
->>>>>>> upstream/master
     for k, v in params.items():
         if hasattr(charac_node.characterisation_parameters, k):
             setattr(charac_node.characterisation_parameters, k, v)
@@ -640,20 +617,6 @@ def add_characterisation(id):
                 charac_node.reference_image_collection.acquisitions[0].acquisition_parameters.centred_position = qmo.CentredPosition(cpos['motor_positions'])
 
     node = mxcube.queue.get_node(int(id))  # this is a sampleNode
-<<<<<<< HEAD
-    entry = mxcube.queue.queue_hwobj.get_entry_with_model(node) # this is the corresponding sampleEntry
-
-    task1Id = mxcube.queue.add_child_at_id(int(id), taskNode1)
-    entry.enqueue(task1Entry)
-
-    #task2Id = mxcube.queue.add_child_at_id(task1Id, taskNode2)
-    #task1Entry.enqueue(task2Entry)
-    
-    newNode = mxcube.queue.add_child_at_id(task1Id, characNode)  # add_child does not return id!
-    task1Entry.enqueue(characEntry)
-    characEntry.set_enabled(True)
-    characNode.set_enabled(True)
-=======
     # this is the corresponding sampleEntry
     entry = mxcube.queue.queue_hwobj.get_entry_with_model(node)
 
@@ -667,7 +630,6 @@ def add_characterisation(id):
     task2_entry.enqueue(charac_entry)
     charac_entry.set_enabled(True)
     charac_node.set_enabled(True)
->>>>>>> upstream/master
     logging.getLogger('HWR').info('[QUEUE] characterisation added to sample')
 
     Utils.save_queue(session)
@@ -798,14 +760,11 @@ def update_method(sample_id, method_id):
     resp.status_code = 200
     return resp
 
-<<<<<<< HEAD
 @mxcube.route("/mxcube/api/v0.1/results/<int:number>")
 def serve_char_result(number):
     print "serving resultss..", number
     return redirect(url_for('static', filename='char' + str(number) + '/index.html'))
  # ##----QUEUE ACTIONS----##
-=======
->>>>>>> upstream/master
 
 @mxcube.route("/mxcube/api/v0.1/queue/dc", methods=['GET'])
 def get_default_dc_params():
@@ -961,15 +920,8 @@ def serialize_queue_to_json():
                             if grandGrandChild['py/object'].split('.')[1] == 'Characterisation':
                                 aux[data_model['_node_id']]['methods'].append({'QueueId': grandGrandChild['_node_id'], 'Type': 'Characterisation', 'Params': grandGrandChild['characterisation_parameters'], 'AcquisitionParams': grandGrandChild['reference_image_collection']['acquisitions'][0]['acquisition_parameters'], 'checked': data_model['_enabled'], 'executed': grandChild['_executed'], 'html_report': ''})  # grandGrandChild['characterisation_parameters']
                     elif grandChild['py/object'].split('.')[1] == 'DataCollection':
-<<<<<<< HEAD
-                        aux[dataModel['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'],'Type': 'DataCollection','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['acquisitions'][0]['acquisition_parameters']})
-                    elif grandChild['py/object'].split('.')[1] == 'Characterisation':
-                        aux[dataModel['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'],'Type': 'Characterisation','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['characterisation_parameters']})
-                    ## acq limited for now to only one element of the array, so a DataCollection entry only has a single Acquisition , done like this to simplify devel... just belean!
-=======
                         aux[data_model['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'], 'Type': 'DataCollection', 'Params': {}, 'checked': data_model['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['acquisitions'][0]['acquisition_parameters']})
                     # acq limited for now to only one element of the array, so
                     # a DataCollection entry only has a single Acquisition ,
                     # done like this to simplify devel... just belean!
->>>>>>> upstream/master
     return aux

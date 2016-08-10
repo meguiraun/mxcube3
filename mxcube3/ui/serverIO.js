@@ -4,11 +4,10 @@ import {
   updatePointsPosition,
   saveMotorPositions,
   setCurrentPhase,
-  setBeamPosition
+  setBeamInfo
 } from './actions/sampleview';
 import { setBeamlineAttrAction } from './actions/beamline';
-import { addTaskResultAction, addTaskAction } from './actions/SamplesGrid';
-import { setStatus } from './actions/queue';
+import { setStatus, addTaskResultAction, addTaskAction } from './actions/queue';
 
 
 export default class ServerIO {
@@ -37,8 +36,8 @@ export default class ServerIO {
       }
     });
 
-    this.hwrSocket.on('beam_changed', (data) => {
-      this.dispatch(setBeamPosition(data));
+    this.hwrSocket.on('beam_changed', (record) => {
+      this.dispatch(setBeamInfo(record.Data));
     });
 
     this.hwrSocket.on('beamline_value_change', (data) => {

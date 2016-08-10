@@ -1,6 +1,12 @@
 import fetch from 'isomorphic-fetch';
 import { showErrorPanel } from './general';
 
+export function setMotorMoving(name, status) {
+  return {
+    type: 'SET_MOTOR_MOVING', name, status
+  };
+}
+
 export function setBeamInfo(info) {
   return {
     type: 'SET_BEAM_INFO', info
@@ -16,12 +22,6 @@ export function setCurrentPhase(phase) {
 export function setImageRatio(clientWidth) {
   return {
     type: 'SET_IMAGE_RATIO', clientWidth
-  };
-}
-
-export function setBeamPosition(position) {
-  return {
-    type: 'SET_BEAM_POSITION', position
   };
 }
 
@@ -46,6 +46,18 @@ export function showContextMenu(show, shape = { type: 'NONE' }, x = 0, y = 0) {
 export function setZoom(level, pixelsPerMm) {
   return {
     type: 'SET_ZOOM', level, pixelsPerMm
+  };
+}
+
+export function measureDistance(mode) {
+  return {
+    type: 'MEASURE_DISTANCE', mode
+  };
+}
+
+export function addDistancePoint(x, y) {
+  return {
+    type: 'ADD_DISTANCE_POINT', x, y
   };
 }
 
@@ -103,6 +115,12 @@ export function updatePointsPosition(points) {
   };
 }
 
+export function toggleCinema() {
+  return {
+    type: 'TOOGLE_CINEMA'
+  };
+}
+
 export function sendStartClickCentring() {
   return function (dispatch) {
     fetch('/mxcube/api/v0.1/sampleview/centring/start3click', {
@@ -138,6 +156,24 @@ export function sendCentringPoint(x, y) {
       }
     }).then(() => {
       dispatch(addCentringPoint(x, y));
+    });
+  };
+}
+
+export function sendGoToBeam(x, y) {
+  return function () {
+    fetch('/mxcube/api/v0.1/sampleview/movetobeam', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-type': 'application/json'
+      },
+      body: JSON.stringify({ clickPos: { x, y } })
+    }).then((response) => {
+      if (response.status >= 400) {
+        throw new Error('Server refused move to beam');
+      }
     });
   };
 }
@@ -200,6 +236,7 @@ export function sendDeletePoint(id) {
 
 export function sendZoomPos(level) {
   return function (dispatch) {
+    dispatch(setMotorMoving('zoom', 4));
     fetch('/mxcube/api/v0.1/sampleview/zoom', {
       method: 'PUT',
       credentials: 'include',
@@ -209,12 +246,13 @@ export function sendZoomPos(level) {
       },
       body: JSON.stringify({ level })
     }).then((response) => {
+      if (response.status === 406) {
+        dispatch(showErrorPanel(true, response.headers.get('msg')));
+        throw new Error('Server refused to zoom');
+      }
       if (response.status >= 400) {
         throw new Error('Server refused to zoom');
       }
-      return response.json();
-    }).then((json) => {
-      dispatch(setZoom(level, json.pixelsPerMm[0]));
     });
   };
 }
@@ -275,7 +313,8 @@ export function sendStopMotor(motorName) {
 }
 
 export function sendMotorPosition(motorName, value) {
-  return function () {
+  return function (dispatch) {
+    dispatch(setMotorMoving(motorName, 4));
     fetch(`/mxcube/api/v0.1/sampleview/${motorName}/${value}`, {
       method: 'PUT',
       credentials: 'include',
@@ -284,6 +323,11 @@ export function sendMotorPosition(motorName, value) {
         'Content-type': 'application/json'
       }
     }).then((response) => {
+      if (response.status === 406) {
+        dispatch(showErrorPanel(true, response.headers.get('msg')));
+        dispatch(setMotorMoving(motorName, 2));
+        throw new Error('Server refused to move motors: out of limits');
+      }
       if (response.status >= 400) {
         throw new Error('Server refused to move motors');
       }
@@ -368,6 +412,26 @@ export function getSampleImageSize() {
   };
 }
 
+export function getMotorPosition(motor) {
+  return function (dispatch) {
+    fetch(`/mxcube/api/v0.1/sampleview/${motor}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-type': 'application/json'
+      }
+    }).then((response) => {
+      if (response.status >= 400) {
+        throw new Error('Server refused to get motor position');
+      }
+      return response.json();
+    }).then((json) => {
+      dispatch(saveMotorPosition(motor, json[motor].position));
+    });
+  };
+}
+
 export function getMotorPositions() {
   return function (dispatch) {
     fetch('/mxcube/api/v0.1/diffractometer/movables/state', {
@@ -406,7 +470,6 @@ export function getPointsPosition() {
     });
   };
 }
-
 
 export function sendCurrentPhase(phase) {
   return function (dispatch) {

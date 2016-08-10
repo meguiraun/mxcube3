@@ -2,6 +2,8 @@ import { omit } from 'lodash/object';
 const initialState = {
   clickCentring: false,
   clickCentringPoints: [],
+  measureDistance: false,
+  distancePoints: [],
   zoom: 0,
   points: {},
   width: 659,
@@ -16,31 +18,24 @@ const initialState = {
     kappaStep: 0.1,
     kappaphiStep: 0.1
   },
-  motors: {
-    focus: { position: 0, Status: 0 },
-    phi: { position: 0, Status: 0 },
-    phiy: { position: 0, Status: 0 },
-    phiz: { position: 0, Status: 0 },
-    sampx: { position: 0, Status: 0 },
-    sampy: { position: 0, Status: 0 },
-    BackLight: { position: 0, Status: 0 },
-    FrontLight: { position: 0, Status: 0 },
-    BackLightSwitch: { position: 0, Status: 0 },
-    FrontLightSwitch: { position: 0, Status: 0 },
-    kappa: { position: 0, Status: 0 },
-    kappa_phi: { position: 0, Status: 0 }
-  },
   pixelsPerMm: 0,
   imageRatio: 0,
   contextMenu: { show: false, shape: { type: 'NONE' }, x: 0, y: 0 },
   apertureList: [],
   currentAperture: 0,
   currentPhase: '',
-  beamPosition: [0, 0]
+  beamPosition: [0, 0],
+  beamShape: 'elipse',
+  beamSize: { x: 0, y: 0 },
+  cinema: false
 };
 
 export default (state = initialState, action) => {
   switch (action.type) {
+    case 'TOOGLE_CINEMA':
+      {
+        return { ...state, cinema: !state.cinema };
+      }
     case 'SET_ZOOM':
       {
         return { ...state, zoom: action.level, pixelsPerMm: action.pixelsPerMm };
@@ -65,6 +60,22 @@ export default (state = initialState, action) => {
             }
         );
       }
+    case 'MEASURE_DISTANCE':
+      {
+        return { ...state, measureDistance: action.mode, distancePoints: [] };
+      }
+    case 'ADD_DISTANCE_POINT':
+      {
+        return (
+          state.distancePoints.length === 2 ?
+            { ...state, measureDistance: false, distancePoints: [] } :
+            {
+              ...state,
+              distancePoints: [...state.distancePoints,
+              { x: action.x, y: action.y }]
+            }
+        );
+      }
     case 'SAVE_POINT':
       {
         return { ...state, points: { ...state.points, [action.point.posId]: action.point } };
@@ -82,24 +93,6 @@ export default (state = initialState, action) => {
           pixelsPerMm: action.pixelsPerMm
         };
       }
-    case 'SAVE_MOTOR_POSITIONS':
-      {
-        return {
-          ...state,
-          motors: { ...state.motors, ...action.data },
-          zoom: action.data.zoom.position,
-          pixelsPerMm: action.data.pixelsPerMm[0]
-        };
-      }
-    case 'SAVE_MOTOR_POSITION':
-      {
-        return {
-          ...state,
-          motors: { ...state.motors,
-            [action.name]: { position: action.value }
-          }
-        };
-      }
     case 'UPDATE_POINTS_POSITION':
       {
         return { ...state, points: action.points };
@@ -115,10 +108,6 @@ export default (state = initialState, action) => {
           }
         };
       }
-    case 'SET_BEAM_POSITION':
-      {
-        return { ...state, beamPosition: action.position };
-      }
     case 'SET_IMAGE_RATIO':
       {
         return { ...state, imageRatio: state.width / action.clientWidth };
@@ -132,7 +121,8 @@ export default (state = initialState, action) => {
         return {
           ...state,
           beamPosition: action.info.position,
-          currentAperture: action.info.size_x * 1000
+          beamShape: action.info.shape,
+          beamSize: { x: action.info.size_x, y: action.info.size_y }
         };
       }
     case 'SET_CURRENT_PHASE':
@@ -151,11 +141,17 @@ export default (state = initialState, action) => {
       {
         return { ...state, motorSteps: { ...state.motorSteps, [action.name]: action.value } };
       }
+    case 'SAVE_MOTOR_POSITIONS':
+      {
+        return { ...state,
+                 zoom: action.data.zoom.position,
+                 pixelsPerMm: action.data.pixelsPerMm[0]
+               };
+      }
     case 'SET_INITIAL_STATUS':
       {
         return {
           ...state,
-          motors: { ...state.motors, ...action.data.Motors },
           zoom: action.data.Motors.zoom.position,
           width: action.data.Camera.imageWidth,
           height: action.data.Camera.imageHeight,
@@ -163,6 +159,8 @@ export default (state = initialState, action) => {
           apertureList: action.data.beamInfo.apertureList,
           currentAperture: action.data.beamInfo.currentAperture,
           beamPosition: action.data.beamInfo.position,
+          beamShape: action.data.beamInfo.shape,
+          beamSize: { x: action.data.beamInfo.size_x, y: action.data.beamInfo.size_y },
           points: action.data.points
         };
       }

@@ -51,9 +51,9 @@ socketio.init_app(app)
 # the following test prevents Flask from initializing twice
 # (because of the Reloader)
 if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-  ###Initialization of the HardwareObjects
-  # this is to allow Hardware Objects to do
-  # 'from HardwareRepository import ...'
+    ###Initialization of the HardwareObjects
+    # this is to allow Hardware Objects to do
+    # 'from HardwareRepository import ...'
     sys.path.insert(0, os.path.dirname(__file__))
     from HardwareRepository import HardwareRepository as hwr, setLogFile
     hwr.addHardwareObjectsDirs([os.path.join(os.path.dirname(__file__), 'HardwareObjects')])
@@ -69,11 +69,14 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
     import logging_handler
     #root_logger = logging.getLogger()
     #root_logger.setLevel(logging.DEBUG)
-    #hwr_logger = logging.getLogger("HWR")
-    hwr_logger = logging.getLogger("user_level_log")
+    hwr_logger = logging.getLogger("HWR")
+    user_logger = logging.getLogger("user_level_log")
+    queue_logger = logging.getLogger("queue_exec")
     custom_log_handler = logging_handler.MX3LoggingHandler()
     custom_log_handler.setLevel(logging.DEBUG)
     hwr_logger.addHandler(custom_log_handler)
+    user_logger.addHandler(custom_log_handler)
+    queue_logger.addHandler(custom_log_handler)
     app.log_handler = custom_log_handler
 
     ###Importing all REST-routes
@@ -84,6 +87,10 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         app.session = app.beamline.getObjectByRole("session")
         app.collect = app.beamline.getObjectByRole("collect")
         app.diffractometer = app.beamline.getObjectByRole("diffractometer")
+
+	if getattr(app.diffractometer, 'centring_motors_list', None) is None:
+	    # centring_motors_list is the list of roles corresponding to diffractometer motors
+	    app.diffractometer.centring_motors_list = app.diffractometer.getPositions().keys()
         app.db_connection = app.beamline.getObjectByRole("lims_client")
         app.empty_queue = jsonpickle.encode(hwr.getHardwareObject(cmdline_options.queue_model))
         app.sample_changer = app.beamline.getObjectByRole("sample_changer")
@@ -97,5 +104,4 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
     # however, objects are not all initialized, so requests can return errors
     # TODO: synchronize web UI with server operation status
     gevent.spawn(complete_initialization, app)
-
 

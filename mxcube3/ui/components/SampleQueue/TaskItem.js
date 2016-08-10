@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Button, Collapse } from 'react-bootstrap';
 import { findDOMNode } from 'react-dom';
-import { DragSource, DropTarget } from 'react-dnd';
+import { DragSource as dragSource, DropTarget as dropTarget } from 'react-dnd';
 import cx from 'classnames';
 
 const cardSource = {
@@ -64,14 +64,14 @@ const cardTarget = {
     // Generally it's better to avoid mutations,
     // but it's good here for the sake of performance
     // to avoid expensive index searches.
-    monitor.getItem().index = hoverIndex;
+    monitor.getItem().index = hoverIndex; // eslint-disable-line no-param-reassign
   }
 };
 
-@DropTarget('task', cardTarget, connect => ({
+@dropTarget('task', cardTarget, connect => ({
   connectDropTarget: connect.dropTarget()
 }))
-@DragSource('task', cardSource, (connect, monitor) => ({
+@dragSource('task', cardSource, (connect, monitor) => ({
   connectDragSource: connect.dragSource(),
   isDragging: monitor.isDragging()
 }))
@@ -87,10 +87,9 @@ export default class TaskItem extends Component {
 
   constructor(props) {
     super(props);
-    const { data, sampleId, id } = this.props;
-    const { type, parameters } = data;
+    const { id, data } = this.props;
     this.showForm = this.showForm.bind(this);
-    this.deleteTask = this.props.deleteTask.bind(this, id);
+    this.deleteTask = this.props.deleteTask.bind(this, data);
     this.toggleChecked = this.props.toggleChecked.bind(this, id);
     this.collapseNode = this.props.collapseNode.bind(this, id);
   }
@@ -124,10 +123,20 @@ export default class TaskItem extends Component {
                 <label className="col-sm-9">File path:</label>
                 <label className="col-sm-3">Prefix:</label>
                   <div className="col-sm-9">
-                    <input type="text" className="form-control" readOnly value={`${rootPath}${data.parameters.path}`} />
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={`${rootPath}${data.parameters.path}`}
+                      readOnly
+                    />
                   </div>
                 <div className="col-sm-3">
-                  <input type="text" className="form-control" readOnly value={data.parameters.prefix} />
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={data.parameters.prefix}
+                    readOnly
+                  />
                 </div>
               </div>
 

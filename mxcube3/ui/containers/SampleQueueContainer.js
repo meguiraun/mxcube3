@@ -4,10 +4,9 @@ import { connect } from 'react-redux';
 import CurrentTree from '../components/SampleQueue/CurrentTree';
 import HistoryTree from '../components/SampleQueue/HistoryTree';
 import * as QueueActions from '../actions/queue';
-import * as SampleActions from '../actions/SamplesGrid';
 import * as SampleViewActions from '../actions/sampleview';
 import { showTaskForm } from '../actions/taskForm';
-import { DragDropContext } from 'react-dnd';
+import { DragDropContext as dragDropContext } from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
 
 function mapStateToProps(state) {
@@ -18,11 +17,11 @@ function mapStateToProps(state) {
     queueStatus: state.queue.queueStatus,
     history: state.queue.history,
     queue: state.queue.queue,
-    sampleInformation: state.sampleGrid.sampleList,
+    sampleInformation: state.queue.sampleList,
     checked: state.queue.checked,
     lookup: state.queue.lookup,
     select_all: state.queue.selectAll,
-    mounted: state.sampleGrid.manualMount.set,
+    mounted: state.queue.manualMount.set,
     collapsedSamples: state.queue.collapsedSample,
     rootPath: state.queue.rootPath
   };
@@ -31,26 +30,15 @@ function mapStateToProps(state) {
 function mapDispatchToProps(dispatch) {
   return {
     queueActions: bindActionCreators(QueueActions, dispatch),
-    sampleActions: bindActionCreators(SampleActions, dispatch),
     sampleViewActions: bindActionCreators(SampleViewActions, dispatch),
     showForm: bindActionCreators(showTaskForm, dispatch)
   };
 }
 
 
-@DragDropContext(HTML5Backend)
+@dragDropContext(HTML5Backend)
 @connect(mapStateToProps, mapDispatchToProps)
 export default class SampleQueueContainer extends React.Component {
-
-
-  filterList(list) {
-    const listFiltered = list.filter((queueID) => {
-      const sampleData = this.props.sampleInformation[this.props.lookup[queueID]];
-      return (this.props.searchString === '' || sampleData.id.indexOf(this.props.searchString) > -1);
-    });
-    return (listFiltered);
-  }
-
 
   render() {
     const {
@@ -72,12 +60,11 @@ export default class SampleQueueContainer extends React.Component {
       sendUnpauseQueue,
       sendStopQueue,
       sendUnmountSample,
-      changeOrder,
       changeTaskOrder,
       collapseList,
-      collapseSample
+      collapseSample,
+      sendDeleteSampleTask
     } = this.props.queueActions;
-    const { sendDeleteSampleTask } = this.props.sampleActions;
 
     return (
 
@@ -109,7 +96,7 @@ export default class SampleQueueContainer extends React.Component {
                   show={history.collapsed}
                   collapse={collapseList}
                   collapsedSamples={collapsedSamples}
-                  list={this.filterList(history.nodes)}
+                  list={history.nodes}
                   sampleInformation={sampleInformation}
                   queue={queue}
                   lookup={lookup}

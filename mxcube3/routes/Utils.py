@@ -6,16 +6,19 @@ import logging
 import jsonpickle
 import redis
 
+
 def _proposal_id(session):
-    try:      
+    try:
         return int(session["loginInfo"]["loginRes"]["Proposal"]["number"])
     except (KeyError, TypeError, ValueError):
         return None
+
 
 def save_queue(session, redis=redis.Redis()):
     proposal_id = _proposal_id(session)
     if proposal_id is not None:
         redis.set("mxcube:queue:%d" % proposal_id, jsonpickle.encode(mxcube.queue))
+
 
 def new_queue(serialized_queue=None):
     if not serialized_queue:
@@ -23,9 +26,10 @@ def new_queue(serialized_queue=None):
     queue = jsonpickle.decode(serialized_queue)
     import Queue
     Queue.init_signals(queue)
-    return queue 
+    return queue
 
-def get_queue(session, redis=redis.Redis()): 
+
+def get_queue(session, redis=redis.Redis()):
     proposal_id = _proposal_id(session)
     if proposal_id is not None:
         serialized_queue = redis.get("mxcube:queue:%d" % proposal_id)
@@ -34,26 +38,28 @@ def get_queue(session, redis=redis.Redis()):
 
     return new_queue(serialized_queue)
 
+
 def get_light_state_and_intensity():
     ret = dict()
 
-    for light in ('BackLight','FrontLight'):
+    for light in ('BackLight', 'FrontLight'):
         item_role = light.lower()
 
         hwobj = mxcube.diffractometer.getObjectByRole(item_role)
 
         if hasattr(hwobj, "getActuatorState"):
-            switch_state = 1 if hwobj.getActuatorState()=='in' else 0
+            switch_state = 1 if hwobj.getActuatorState() == 'in' else 0
         else:
-            hwobj_switch = mxcube.diffractometer.getObjectByRole(light+'Switch')
-            switch_state = 1 if hwobj_switch.getActuatorState()=='in' else 0
+            hwobj_switch = mxcube.diffractometer.getObjectByRole(light + 'Switch')
+            switch_state = 1 if hwobj_switch.getActuatorState() == 'in' else 0
 
-        pos = hwobj.getPosition()
-
-        ret.update({light: {"Status":hwobj.getState(), "position":hwobj.getPosition()}, light+'Switch': {"Status": switch_state, "position":0}})
+        ret.update({light: {"Status": hwobj.getState(), "position": hwobj.getPosition()},
+                    light + 'Switch': {"Status": switch_state, "position": 0}
+                    })
 
     return ret
- 
+
+
 def get_movable_state_and_position(item_name):
     item_role = item_name.lower()
     ret = dict()
@@ -64,11 +70,11 @@ def get_movable_state_and_position(item_name):
             # this returns more than needed, but it doesn't
             # matter
             return get_light_state_and_intensity()
-          
+
         hwobj = mxcube.diffractometer.getObjectByRole(item_role)
 
         if hwobj is None:
-            logging.getLogger("HWR").error('[UTILS.GET_MOVABLE_STATE_AND_POSITION] unknown role "%s"' % item_role)
+            logging.getLogger("HWR").error('[UTILS.GET_MOVABLE_STATE_AND_POSITION] No movable with role "%s"' % item_role)
         else:
             if hasattr(hwobj, "getCurrentPositionName"):
                 # a motor similar to zoom
@@ -76,13 +82,27 @@ def get_movable_state_and_position(item_name):
                 if pos_name:
                     pos = hwobj.predefinedPositions[pos_name]
                 else:
-                    pos = None 
-                return { item_name: {"Status": hwobj.getState(), "position": pos }}
+                    pos = None
+                return {item_name: {"Status": hwobj.getState(), "position": pos}}
             else:
-                return { item_name: {'Status': hwobj.getState(), 'position': hwobj.getPosition() }}
+		pos = hwobj.getPosition()
+		try:
+		    pos = round(pos, 2)
+		except:
+		    pass
+                return {item_name: {'Status': hwobj.getState(), 'position': pos}}
     except Exception:
-        logging.getLogger('HWR').exception('[UTILS.GET_MOVABLE_STATE_AND_POSITION] could not get item "%s"' % item_name)            
+        logging.getLogger('HWR').exception('[UTILS.GET_MOVABLE_STATE_AND_POSITION] could not get item "%s"' % item_name)
 
+
+def get_centring_motors_info():
+    # the centring motors are: ["phi", "focus", "phiz", "phiy", "zoom", "sampx", "sampy", "kappa", "kappa_phi"]
+    ret = dict()
+    for name in mxcube.diffractometer.centring_motors_list:
+        motor_info = get_movable_state_and_position(name)
+        if motor_info and motor_info[name]['position'] is not None:
+            ret.update(motor_info)
+    return ret
 
 def my_execute_entry(self, entry):
     import queue_entry as qe
@@ -259,9 +279,10 @@ def my_execute_entry(self, entry):
     self._current_queue_entries.remove(entry)
     print "executing on my waaaaay madarikatuak finished"
 
+
 def __execute_entry(self, entry):
     print "my execute_entry"
-    from routes.Queue import queue, lastQueueNode
+    from routes.Queue import queue, last_queue_node
     import logging
     logging.getLogger('queue_exec').info('Executing mxcube3 customized entry')
 
@@ -271,7 +292,7 @@ def __execute_entry(self, entry):
     #if this is a sample, parentId will be '0'
     if parentId == 0:  # Sample... 0 is your father...
         parentId = nodeId
-    lastQueueNode.update({'id': nodeId, 'sample': queue[parentId]['SampleId']})
+    last_queue_node.update({'id': nodeId, 'sample': queue[parentId]['SampleId']})
     print "enabling....", entry
     #entry.set_enabled(True)
     if not entry.is_enabled() or self._is_stopped:

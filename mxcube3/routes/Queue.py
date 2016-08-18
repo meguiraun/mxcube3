@@ -939,6 +939,7 @@ def serialize_queue_to_json():
             if child['py/object'].split('.')[1] == 'TaskGroup': #keep going down
                 for grandChild in child['_children']:
                     if grandChild['py/object'].split('.')[1] == 'TaskGroup': #keep going down one more time for the Char
+                        """ the following loop is not needed
                         for grandGrandChild in grandChild['_children']:
                             print "grandGrandChild is", grandGrandChild['py/object']  
                             if grandGrandChild['py/object'].split('.')[1] == 'Characterisation': 
@@ -946,6 +947,7 @@ def serialize_queue_to_json():
                                 aux[dataModel['_node_id']]['methods'].append({'QueueId': grandGrandChild['_node_id'],'Type': 'Characterisation','Params': grandGrandChild['characterisation_parameters'], 'AcquisitionParams': grandGrandChild['reference_image_collection']['acquisitions'][0]['acquisition_parameters'],'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'html_report': ''}) #grandGrandChild['characterisation_parameters']
                             if grandGrandChild['py/object'].split('.')[1] == 'DataCollection':
                                 aux[dataModel['_node_id']]['methods'].append({'QueueId': grandGrandChild['_node_id'],'Type': 'DataCollection','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'],'Params': grandGrandChild['acquisitions'][0]['acquisition_parameters'] })
+                        """ 
                     elif grandChild['py/object'].split('.')[1] == 'DataCollection':
                         aux[dataModel['_node_id']]['methods'].append({'QueueId': grandChild['_node_id'],'Type': 'DataCollection','Params': {},'checked': dataModel['_enabled'], 'executed': grandChild['_executed'], 'Params': grandChild['acquisitions'][0]['acquisition_parameters']})
                     elif grandChild['py/object'].split('.')[1] == 'Characterisation':

@@ -628,9 +628,11 @@ def add_characterisation(id):
 
     charac_node.reference_image_collection.acquisitions[0].acquisition_parameters.set_from_dict(params_def)
     charac_node.reference_image_collection.acquisitions[0].path_template.directory = os.path.join(
-        mxcube.session.get_base_image_directory(), params['path'])
+        mxcube.session.get_base_image_directory(), params.get('path', 'dummy_path'))
     charac_node.reference_image_collection.acquisitions[0].path_template.run_number = params['run_number']
     charac_node.reference_image_collection.acquisitions[0].path_template.base_prefix = params['prefix']
+    charac_node.reference_image_collection.acquisitions[0].path_template.process_directory = os.path.join(
+        mxcube.session.get_base_process_directory(), params.get('path', 'dummy_path'))
     if mxcube.queue.check_for_path_collisions(charac_node.reference_image_collection.acquisitions[0].path_template):
         logging.getLogger('HWR').exception('[QUEUE] Characterisation could not be added to sample: Data Collision')
         return Response(status=409)    
@@ -693,6 +695,8 @@ def add_data_collection(id):
         mxcube.session.get_base_image_directory(), params.get('path', 'dummy_path'))
     col_node.acquisitions[0].path_template.run_number = params['run_number']
     col_node.acquisitions[0].path_template.base_prefix = params['prefix']
+    col_node.acquisitions[0].path_template.process_directory = os.path.join(
+        mxcube.session.get_base_process_directory(), params.get('path', 'dummy_path'))
     if mxcube.queue.check_for_path_collisions(col_node.acquisitions[0].path_template):
         logging.getLogger('HWR').exception('[QUEUE] datacollection could not be added to sample: Data Collision')
         return Response(status=409)

@@ -121,7 +121,7 @@ export default class TaskItem extends Component {
       <tr>
         <td><a>{parameters.osc_start.toFixed(2)}</a></td>
         <td><a>{parameters.osc_range.toFixed(2)}</a></td>
-        <td><a>{parameters.exp_time.toFixed(2)}</a></td>
+        <td><a>{parameters.exp_time.toFixed(4)}</a></td>
         <td><a>{parameters.num_images}</a></td>
         <td><a>{parameters.transmission.toFixed(2)}</a></td>
         <td><a>{parameters.resolution.toFixed(3)}</a></td>
@@ -239,7 +239,7 @@ export default class TaskItem extends Component {
                   <tr>
                     <th>Start &deg; </th>
                     <th>Osc. &deg; </th>
-                    <th>t (ms)</th>
+                    <th>t (s)</th>
                     <th># Img</th>
                     <th>T (%)</th>
                     <th>Res. (&Aring;)</th>

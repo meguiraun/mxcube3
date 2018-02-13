@@ -35,6 +35,7 @@ function mapStateToProps(state) {
     userMessages: state.general.userMessages,
     plotsData: state.beamline.plotsData,
     plotsInfo: state.beamline.plotsInfo,
+    selectedShapes: state.sampleview.selectedShapes
   };
 }
 
@@ -107,6 +108,9 @@ export default class SampleQueueContainer extends React.Component {
     const {
       sendPrepareForNewSample
     } = this.props.beamlineActions;
+    const {
+      sendDeleteShape
+    } = this.props.sampleViewActions;
 
 
     // go through the queue, check if sample has been collected or not
@@ -218,6 +222,8 @@ export default class SampleQueueContainer extends React.Component {
               queueStatus={queueStatus}
               showList={showList}
               sendPrepareForNewSample={sendPrepareForNewSample}
+              sendDeleteShape={sendDeleteShape}
+              selectedShapes={this.props.selectedShapes}
             />
             <UserMessage
               messages={this.props.userMessages}

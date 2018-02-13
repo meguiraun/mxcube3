@@ -8,6 +8,7 @@ export default class TodoTree extends React.Component {
     super(props);
     this.setSearchWord = this.setSearchWord.bind(this);
     this.showAddSampleForm = this.showAddSampleForm.bind(this);
+    this.removeShapes = this.removeShapes.bind(this);
     this.state = { searchWord: '' };
   }
 
@@ -15,7 +16,16 @@ export default class TodoTree extends React.Component {
     this.setState({ searchWord: searchWord.target.value });
   }
 
+  removeShapes() {
+    if (this.props.selectedShapes) {
+      this.props.selectedShapes.forEach((shapeID) => (
+        this.props.sendDeleteShape(shapeID)
+      ));
+    }
+  }
+
   showAddSampleForm() {
+    this.removeShapes();
     this.props.sendPrepareForNewSample();
     this.props.showForm('AddSample');
     this.props.showList('current');

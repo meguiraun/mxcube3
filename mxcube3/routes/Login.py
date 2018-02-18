@@ -114,6 +114,29 @@ def signout():
 
     return make_response("", 200)
 
+@mxcube.route("/mxcube/api/v0.1/forcesignout")
+def forcesignout():
+    """
+    Force signout from Mxcube3 and reset the session
+    """
+    global LOGGED_IN_USER
+
+    qutils.save_queue(session)
+    mxcube.queue = qutils.new_queue()
+    mxcube.shapes.clear_all()
+
+    if mxcube.CURRENTLY_MOUNTED_SAMPLE:
+        if mxcube.CURRENTLY_MOUNTED_SAMPLE.get('location', '') == 'Manual':
+            mxcube.CURRENTLY_MOUNTED_SAMPLE = ''
+
+    LOGGED_IN_USER = None
+    if remote_access.is_master(session.sid):
+        state_storage.flush()
+        remote_access.flush()
+
+    session.clear()
+    socketio.emit("signout", {}, namespace='/hwr')
+    return make_response("", 200)
 
 @mxcube.route("/mxcube/api/v0.1/login_info", methods=["GET"])
 def loginInfo():
@@ -138,6 +161,7 @@ def loginInfo():
     """
     global LOGGED_IN_USER
     login_info = session.get("loginInfo")
+    proposal_info = session.get("proposal")
 
     if login_info is not None:
         login_id = login_info["loginID"]
@@ -171,6 +195,14 @@ def loginInfo():
         res["selectedProposal"] = LOGGED_IN_USER
         logging.getLogger('user_log').info('[LIMS] Proposal autoselected.')
 
+    # elif res["loginType"].lower() == 'user' and login_info and not LOGGED_IN_USER:
+    #     print 'I am here'
+    #     print login_info
+    #     print proposal_info
+    #     selected_proposal = proposal_info.get('code')+proposal_info.get('number')
+    #     limsutils.select_proposal(selected_proposal)
+    #     res["selectedProposal"] = selected_proposal
+    #     LOGGED_IN_USER = login_info.get('loginID') 
 
     # Get all the files in the root data dir for this user
     root_path = mxcube.session.get_base_image_directory()

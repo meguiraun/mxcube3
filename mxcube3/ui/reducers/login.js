@@ -3,7 +3,8 @@ const initialState = {
   loggedIn: false,
   data: {},
   showProposalsForm: false,
-  selectedProposal: ''
+  selectedProposal: '',
+  showForceLogoutDialog: false
 };
 
 export default (state = initialState, action) => {
@@ -41,6 +42,10 @@ export default (state = initialState, action) => {
     case 'HIDE_PROPOSALS_FORM':
       {
         return { ...state, showProposalsForm: false };
+      }
+    case 'SHOW_FORCE_LOGOUT_DIALOG':
+      {
+        return { ...state, showForceLogoutDialog: action.show };
       }
     default:
       return state;

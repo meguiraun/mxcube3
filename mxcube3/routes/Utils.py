@@ -216,6 +216,7 @@ def take_snapshots(self, snapshots=None, _do_take_snapshot=_do_take_snapshot):
             try:
                 logging.getLogger("HWR").info("Taking snapshot number: %d" % (snapshot_index + 1))
                 _do_take_snapshot(snapshot_filename)
+		time.sleep(4)
             except Exception:
                 sys.excepthook(*sys.exc_info())
                 raise RuntimeError("Could not take snapshot '%s'", snapshot_filename)

@@ -41,6 +41,8 @@ import { setSCState,
 
 import { setEnergyScanResult } from './actions/taskResults';
 
+import { forceSignOut } from './actions/login';
+
 class ServerIO {
 
   constructor() {
@@ -214,6 +216,10 @@ class ServerIO {
     this.hwrSocket.on('connect', () => {
       this.connected = true;
       this.dispatch(showConnectionLostDialog(false));
+    });
+
+    this.hwrSocket.on('signout', () => {
+      this.dispatch(forceSignOut());
     });
 
     this.hwrSocket.on('resumeQueueDialog', () => {

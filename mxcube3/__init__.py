@@ -63,6 +63,21 @@ def exception_handler(e):
     logging.getLogger("exceptions").exception(err_msg)
     return err_msg+": "+traceback.format_exc(), 409
 app.register_error_handler(Exception, exception_handler)
+
+@app.before_request
+def before_request():
+    session_paths = ['login', 'login_info', 'signout', 'clear']
+    if not any(sp in request.path for sp in session_paths):
+        from routes import Login
+        if not Login.LOGGED_IN_USER:
+            try:
+                logging.getLogger("HWR").info("Forcing logout of any connected user")
+                session.clear()
+                socketio.emit("signout", {}, namespace='/hwr')
+            except Exception as ex:
+                print ex
+            return None
+
 sess = Session()
 sess.init_app(app)
 app.debug = False

@@ -11,6 +11,7 @@ import ObserverDialog from './RemoteAccess/ObserverDialog';
 import PassControlDialog from './RemoteAccess/PassControlDialog';
 import ConfirmCollectDialog from '../containers/ConfirmCollectDialog';
 import WorkflowParametersDialog from '../containers/WorkflowParametersDialog';
+import ForceLogoutDialog from '../containers/ForceLogoutDialog';
 
 class Main extends React.Component {
   constructor(props) {
@@ -51,6 +52,7 @@ class Main extends React.Component {
         <ErrorNotificationPanel />
         <ResumeQueueDialog />
         <ConnectionLostDialog />
+        <ForceLogoutDialog />
         <ObserverDialog />
         <PassControlDialog />
         <ConfirmCollectDialog />

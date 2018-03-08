@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from flask import Flask, request, session
+from flask import Flask, request, session, Response
 from flask_socketio import SocketIO
 from flask_session import Session
 from optparse import OptionParser
@@ -66,17 +66,21 @@ app.register_error_handler(Exception, exception_handler)
 
 @app.before_request
 def before_request():
-    session_paths = ['login', 'login_info', 'signout', 'clear']
-    if not any(sp in request.path for sp in session_paths):
-        from routes import Login
+    from routes import Login
+    session_paths = ['login', 'login_info', 'signout', 'clear', '/']	
+    session_endpoints = ['login', 'loginInfo', 'signout', 'queue_clear', 'serve_static_file', 'static']	
+#    logging.getLogger("HWR").info("%s %s" %(request.path, request.endpoint))
+    #if not any(sp in request.endpoint for sp in session_endpoints):
+    if not request.endpoint in session_endpoints: 
         if not Login.LOGGED_IN_USER:
+            logging.getLogger("HWR").error("There is not user logged in!")
             try:
                 logging.getLogger("HWR").info("Forcing logout of any connected user")
                 session.clear()
                 socketio.emit("signout", {}, namespace='/hwr')
             except Exception as ex:
                 print ex
-            return None
+            return Response(status=409)
 
 sess = Session()
 sess.init_app(app)

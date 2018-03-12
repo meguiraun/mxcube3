@@ -276,7 +276,7 @@ def get_queue_state():
     return res
 
 
-def _handle_dc(sample_node, node, include_lims_data=True):
+def _handle_dc(sample_node, node, include_lims_data=False):
     parameters = node.as_dict()
     parameters["shape"] = getattr(node, 'shape', '')
     parameters["helical"] = node.experiment_type == qme.EXPERIMENT_TYPE.HELICAL
@@ -1346,10 +1346,10 @@ def add_workflow(node_id, task):
 
     pt = wf_model.path_template
 
-    if mxcube.queue.check_for_path_collisions(pt):
-        msg = "[QUEUE] data collection could not be added to sample: "
-        msg += "path collision"
-        raise Exception(msg)
+    #if mxcube.queue.check_for_path_collisions(pt):
+    #    msg = "[QUEUE] data collection could not be added to sample: "
+    #    msg += "path collision"
+    #    raise Exception(msg)
 
     group_model = qmo.TaskGroup()
     group_model.set_origin(ORIGIN_MX3)
@@ -1739,13 +1739,14 @@ def get_auto_mount_sample():
 
 def get_task_progress(node, pdata):
     progress = 0
-
     if node.is_executed():
         progress = 1
     elif is_interleaved(node):
         progress = (pdata["current_idx"] + 1) * pdata["sw_size"] / float(pdata["nitems"] * pdata["sw_size"])
     elif isinstance(node, qmo.Characterisation):
-        dc = node.reference_image_collection
+	# TEMP FIX: char progress is completely crazy, disabling for now
+	return 0
+        dc = node.reference_image_collection	
         total = float(dc.acquisitions[0].acquisition_parameters.num_images) * 2
         progress = pdata / total
     else:

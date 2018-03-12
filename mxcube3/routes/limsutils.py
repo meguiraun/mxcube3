@@ -111,7 +111,7 @@ def apply_template(params, sample_model, path_template):
 
 def strip_prefix(pt, prefix):
     """
-    Strips the reference, wedge and mad prefix from a given prefix. For example 
+    Strips the reference, wedge and mad prefix from a given prefix. For example
     removes ref- from the beginning and _w[n] and -pk, -ip, -ipp from the end.
 
     :param PathTemplate pt: path template used to create the prefix
@@ -143,11 +143,14 @@ def lims_login(loginID, password):
     """
     login_res = {}
 
+    # If this is used often, it could be moved to a better place.
+    ERROR_CODE = dict({'status': {'code': '0'}})
+
     try:
         mxcube.rest_lims.authenticate(loginID, password)
     except:
         logging.getLogger('HWR').error('[LIMS-REST] Could not authenticate')
-        return dict({'status': {'code': '0'}})
+        return ERROR_CODE
 
     if mxcube.db_connection.loginType.lower() == 'user':
         # soap will autocreate a session if empty, this is the only reason for this
@@ -156,13 +159,23 @@ def lims_login(loginID, password):
         # if we auth by username we need all the associated proposals for later select
 
         try:
+            connection_ok = mxcube.db_connection.echo()
+            if not connection_ok:
+                mxcube.db_connection.init()
+        except:
+            msg = '[LIMS] Connection Error!'
+            logging.getLogger('HWR').error(msg)
+            return ERROR_CODE
+
+        try:
+
             proposals = mxcube.db_connection.get_proposals_by_user(loginID)
 
             logging.getLogger('HWR').info('[LIMS] Retrieving proposal list for user: %s, proposals: %s' % (loginID, proposals))
             session['proposal_list'] = copy.deepcopy(proposals)
         except:
             logging.getLogger('HWR').error('[LIMS] Could not retreive proposal list, %s' % sys.exc_info()[1])
-            return dict({'status': {'code': '0'}})
+            return ERROR_CODE
         for prop in session['proposal_list']:
             # if len(prop['Session']) == 0:
             todays_session = mxcube.db_connection.get_todays_session(prop)
@@ -187,7 +200,7 @@ def lims_login(loginID, password):
                  aux['Proposal']['code'], aux['Proposal']['number'])
         except:
             logging.getLogger('HWR').error('[LIMS] Could not login to LIMS')
-            return dict({'status': {'code': '0'}})
+            return ERROR_CODE
 
         login_res['proposalList'] = [aux]
         login_res['status'] = status

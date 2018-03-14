@@ -132,7 +132,7 @@ def init_signals():
         movable = Utils.get_movable_state_and_position('zoom')
         signals.motor_state_callback(movable['zoom'], **kw)
 
-    setattr(dm, "_%s_state_callback" % motor, zoom_state_cb)
+#    setattr(dm, "_%s_state_callback" % motor, zoom_state_cb)
 
     try:
         zoom_motor_hwobj = dm.getObjectByRole('zoom')

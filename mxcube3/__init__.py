@@ -169,8 +169,8 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         # SampleID of currently mounted sample
         app.CURRENTLY_MOUNTED_SAMPLE = None
         app.SAMPLE_TO_BE_MOUNTED = ''
-        app.AUTO_MOUNT_SAMPLE = False
-        app.AUTO_ADD_DIFFPLAN = False
+        app.AUTO_MOUNT_SAMPLE = app.collect.getProperty('auto_mount_sample', False)
+        app.AUTO_ADD_DIFFPLAN = app.collect.getProperty('auto_add_diff_plan', False)
         app.CENTRING_METHOD = CENTRING_METHOD.LOOP
         app.NUM_SNAPSHOTS = app.collect.getProperty('num_snapshots', 4)
         app.NODE_ID_TO_LIMS_ID = {}

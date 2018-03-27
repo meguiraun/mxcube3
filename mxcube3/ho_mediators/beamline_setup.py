@@ -124,7 +124,7 @@ class _BeamlineSetupMediator(object):
             fast_shutter = self.getObjectByRole("fast_shutter")
             attributes.update({"fast_shutter": fast_shutter.dict_repr()})
         except Exception:
-            logging.getLogger("HWR").error("Failed to get fast_shutter info")
+            logging.getLogger("HWR").warning("Failed to get fast_shutter info")
 
         try:
             safety_shutter = self.getObjectByRole("safety_shutter")
@@ -136,7 +136,7 @@ class _BeamlineSetupMediator(object):
             beamstop = self.getObjectByRole("beamstop")
             attributes.update({"beamstop": beamstop.dict_repr()})
         except Exception:
-            logging.getLogger("HWR").error("Failed to get beamstop info")
+            logging.getLogger("HWR").warning("Failed to get beamstop info")
 
         try:
             detdist = self.getObjectByRole("dtox")
@@ -354,9 +354,8 @@ class EnergyHOMediator(HOMediatorBase):
 
     def state(self):
         state = MOTOR_STATE.READY
-
         try:
-            state = self._ho.energy_motor.getState()
+            state = MOTOR_STATE.VALUE_TO_STR.get(self._ho.energy_motor.getState(), "READY")
         except:
             pass
 
@@ -391,9 +390,9 @@ class WavelengthHOMediator(HOMediatorBase):
         self._precision = 4
 
     @Utils.RateLimited(6)
-    def _value_change(pos, wl):
-        self.value_change(wl)
-
+    def _value_change(self, *args, **kwargs):
+        self.value_change(args[1])
+    
     def set(self, value):
         """
         :param value: Value (castable to float) to set
@@ -432,7 +431,7 @@ class WavelengthHOMediator(HOMediatorBase):
         state = MOTOR_STATE.READY
 
         try:
-            state = self._ho.getState()
+            state = MOTOR_STATE.VALUE_TO_STR.get(self._ho.energy_motor.getState(), "READY")
         except:
             pass
 

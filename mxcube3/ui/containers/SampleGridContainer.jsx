@@ -383,10 +383,14 @@ class SampleGridContainer extends React.Component {
     if (sample) {
       const sampleFilter = `${sample.sampleName} ${sample.proteinAcronym}`.toLowerCase();
       const locationFilter = `${sample.location}`;
+      const limsLocation = `${sample.lims_location}`;
 
       fi = sampleFilter.includes(this.props.filterOptions.text.toLowerCase());
 
       fi &= locationFilter.startsWith(this.props.filterOptions.puckFilter.toLowerCase());
+
+      fi &= this.props.filterOptions.limsSynched ? limsLocation !== 'undefined' : 1;
+
       fi &= this.mutualExclusiveFilterOption(sample, 'inQueue', 'notInQueue', this.inQueueSampleID);
       fi &= this.mutualExclusiveFilterOption(sample, 'collected', 'notCollected', isCollected);
     }

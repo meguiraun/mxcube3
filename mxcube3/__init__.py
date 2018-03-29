@@ -164,6 +164,7 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         app.rest_lims = app.beamline.getObjectByRole("lims_rest_client")
         app.queue = qutils.new_queue()
         app.actions = hwr.getHardwareObject(cmdline_options.beamline_actions)
+        logging.getLogger("HWR").warning("Plotting hardware object is not available in the beamline at this moment. Ignore any error message regarding plotting.")
         app.plotting = hwr.getHardwareObject(cmdline_options.plotting)
 
         # SampleID of currently mounted sample

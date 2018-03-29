@@ -50,7 +50,7 @@ def init_signals():
         mxcube.plotting.connect(mxcube.plotting, 'plot_data', signals.plot_data)
         mxcube.plotting.connect(mxcube.plotting, 'plot_end', signals.plot_end)
     except Exception, ex:
-        logging.getLogger('HWR').error("error loading plotting hwo: %s" % str(ex))
+        logging.getLogger('HWR').warning("error loading plotting hwo")
 
     try:
         mxcube.beamline.xrf_spectrum_hwobj.connect(mxcube.beamline.xrf_spectrum_hwobj, 'new_plot', signals.new_plot)
@@ -58,7 +58,7 @@ def init_signals():
         mxcube.beamline.xrf_spectrum_hwobj.connect(mxcube.beamline.xrf_spectrum_hwobj, 'plot_end', signals.plot_end)
         mxcube.beamline.xrf_spectrum_hwobj.connect(mxcube.beamline.xrf_spectrum_hwobj, 'xrf_task_progress', signals.xrf_task_progress)
     except Exception, ex:
-        logging.getLogger('HWR').error("error loading plotting hwo: %s" % str(ex))
+        logging.getLogger('HWR').warning("error loading xrf hwo")
 
 
 @mxcube.route("/mxcube/api/v0.1/beamline", methods=['GET'])

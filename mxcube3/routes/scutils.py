@@ -19,7 +19,7 @@ def sc_contents_add(sample):
 
     if code:
         mxcube.SC_CONTENTS.get("FROM_CODE")[code] = sample
-    else:
+    if location:
         mxcube.SC_CONTENTS.get("FROM_LOCATION")[location] = sample
 
 

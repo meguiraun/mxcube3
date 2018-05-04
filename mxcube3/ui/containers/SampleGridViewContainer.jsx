@@ -117,6 +117,7 @@ class SampleGridViewContainer extends React.Component {
       notInQueue: this.props.filterOptions.notInQueue,
       collected: this.props.filterOptions.collected,
       notCollected: this.props.filterOptions.notCollected,
+      limsSynched: this.props.filterOptions.limsSynched,
       filterText: this.props.filterOptions.text,
       puckFilter: this.props.filterOptions.puckFilter
     };
@@ -248,6 +249,7 @@ class SampleGridViewContainer extends React.Component {
             this.props.filterOptions.notInQueue ||
             this.props.filterOptions.collected ||
             this.props.filterOptions.notCollected ||
+            this.props.filterOptions.limsSynched ||
             (this.props.filterOptions.text.length > 0));
   }
 
@@ -262,6 +264,7 @@ class SampleGridViewContainer extends React.Component {
       notInQueue: { notInQueue: e.target.checked },
       collected: { collected: e.target.checked },
       notCollected: { notCollected: e.target.checked },
+      limsSynched: { limsSynched: e.target.checked },
       filterText: { text: ReactDOM.findDOMNode(this.filterInput).value.trim() }
     };
 
@@ -277,6 +280,7 @@ class SampleGridViewContainer extends React.Component {
                         notInQueue: false,
                         collected: false,
                         notCollected: false,
+                        limsSynched: false,
                         filterText: '' });
   }
 
@@ -510,6 +514,18 @@ class SampleGridViewContainer extends React.Component {
                           onChange={this.sampleGridFilter}
                         >
                           Not Collected
+                        </Checkbox>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col xs={6}>
+                        <Checkbox
+                          inline
+                          id="limsSynched"
+                          checked={this.getFilterOptionValue('limsSynched')}
+                          onChange={this.sampleGridFilter}
+                        >
+                          Lims Synched
                         </Checkbox>
                       </Col>
                     </Row>

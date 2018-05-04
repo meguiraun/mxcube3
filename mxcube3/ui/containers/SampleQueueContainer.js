@@ -35,7 +35,7 @@ function mapStateToProps(state) {
     userMessages: state.general.userMessages,
     plotsData: state.beamline.plotsData,
     plotsInfo: state.beamline.plotsInfo,
-    selectedShapes: state.sampleview.selectedShapes
+    selectedShapes: state.sampleview.selectedShapes,
     shapes: state.shapes
   };
 }

@@ -72,7 +72,6 @@ class Main extends React.Component {
         <ErrorNotificationPanel />
         <ResumeQueueDialog />
         <ConnectionLostDialog />
-        <ForceLogoutDialog />
         <ObserverDialog />
         <PassControlDialog />
         <ConfirmCollectDialog />

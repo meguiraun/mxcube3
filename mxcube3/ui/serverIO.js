@@ -239,10 +239,6 @@ class ServerIO {
       this.dispatch(showConnectionLostDialog(false));
     });
 
-    this.hwrSocket.on('signout', () => {
-      this.dispatch(forceSignOut());
-    });
-
     this.hwrSocket.on('resumeQueueDialog', () => {
       this.dispatch(showResumeQueueDialog(true));
     });

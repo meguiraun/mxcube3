@@ -13,10 +13,11 @@ import SampleQueueContainer from './SampleQueueContainer';
 import { QUEUE_RUNNING } from '../constants';
 import config from 'guiConfig';
 
+
 class SampleViewContainer extends Component {
 
   render() {
-    const { imageRatio, motorSteps } = this.props.sampleViewState;
+    const { sourceScale, imageRatio, motorSteps } = this.props.sampleViewState;
     const { sendMotorPosition, setStepSize, sendStopMotor } = this.props.sampleViewActions;
     const sampleID = this.props.current.sampleID;
     const [points, lines, grids] = [{}, {}, {}];
@@ -48,7 +49,7 @@ class SampleViewContainer extends Component {
 
     const apertureControl = (
       <div>
-      <p className="motor-name">Aperture Control:</p>
+      <p className="motor-name">Beam size:</p>
       <ApertureInput
         aperture={this.props.sampleViewState.currentAperture}
         apertureList={this.props.sampleViewState.apertureList}
@@ -79,7 +80,7 @@ class SampleViewContainer extends Component {
                   steps={motorSteps}
                   stop={sendStopMotor}
                 />
-                </div>
+              </div>
               <div className="col-xs-7">
                 <ContextMenu
                   {...this.props.contextMenu}
@@ -89,7 +90,7 @@ class SampleViewContainer extends Component {
                   sampleID={sampleID}
                   sampleData={this.props.sampleList[sampleID]}
                   defaultParameters={this.props.defaultParameters}
-                  imageRatio={imageRatio}
+                  imageRatio={imageRatio * sourceScale}
                   workflows={this.props.workflows}
                   savedPointId={this.props.sampleViewState.savedPointId}
                   groupFolder={this.props.groupFolder}
@@ -99,6 +100,7 @@ class SampleViewContainer extends Component {
                   sampleActions={this.props.sampleViewActions}
                   {...this.props.sampleViewState}
                   {...this.props.beamline}
+                  imageRatio={imageRatio * sourceScale}
                   contextMenuVisible={this.props.contextMenu.show}
                   shapes={this.props.shapes}
                   points={points}
@@ -110,6 +112,7 @@ class SampleViewContainer extends Component {
                   current={this.props.current}
                   sampleList={this.props.sampleList}
                   proposal={this.props.proposal}
+                  busy={this.props.queueState === QUEUE_RUNNING}
                 />
               </div>
               <div className="col-xs-4" style={ { display: 'flex' } }>
@@ -137,7 +140,8 @@ function mapStateToProps(state) {
     workflows: state.workflow.workflows,
     cellCounting: state.taskForm.defaultParameters.mesh.cell_counting,
     cellSpacing: state.taskForm.defaultParameters.mesh.cell_spacing,
-    proposal: state.login.selectedProposal
+    proposal: state.login.selectedProposal,
+    remoteAccess: state.remoteAccess
   };
 }
 

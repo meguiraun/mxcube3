@@ -22,7 +22,6 @@ def get_beam_info():
         # the correct beam posiition
         width, height, scale = streaming.video_size()
         position = beam_info.get_beam_position()
-        position = position[0] * scale, position[1] * scale
         beam_info_dict["position"] = position
 
     return beam_info_dict
@@ -36,13 +35,24 @@ def get_aperture():
     :rtype: tuple
     """
     aperture_list, current_aperture = [], None
-    aperture = mxcube.diffractometer.getObjectByRole("aperture")
+    aperture = get_beam_definer()
 
     if aperture is not None:
         aperture_list = aperture.getPredefinedPositionsList()
         current_aperture = aperture.getCurrentPositionName()
 
     return aperture_list, current_aperture
+
+
+def get_beam_definer():
+    beam_info = mxcube.beamline.getObjectByRole("beam_info") 
+
+    if hasattr(beam_info, "beam_definer_hwobj") and beam_info.beam_definer_hwobj:
+        bd = beam_info.beam_definer_hwobj
+    else:
+        bd = beam_info.aperture_hwobj
+
+    return bd
 
 
 def get_viewport_info():

@@ -11,12 +11,32 @@ import ObserverDialog from './RemoteAccess/ObserverDialog';
 import PassControlDialog from './RemoteAccess/PassControlDialog';
 import ConfirmCollectDialog from '../containers/ConfirmCollectDialog';
 import WorkflowParametersDialog from '../containers/WorkflowParametersDialog';
-import ForceLogoutDialog from '../containers/ForceLogoutDialog';
+import diagonalNoise from '../img/diagonal-noise.png';
+import { sendChatMessage, getAllChatMessages } from '../actions/remoteAccess.js';
+import { Widget, addResponseMessage, addUserMessage } from 'react-chat-widget';
+import './rachat.css';
 
 class Main extends React.Component {
   constructor(props) {
     super(props);
     this.handleClick = this.handleClick.bind(this);
+    this.handleNewUserMessage = this.handleNewUserMessage.bind(this);
+  }
+
+  componentDidMount() {
+    getAllChatMessages().then((json) => {
+      json.messages.forEach((entry) => {
+        if (entry.sid === this.props.remoteAccess.sid) {
+          addUserMessage(`${entry.date} **You:** \n\n ${entry.message} \n\n`);
+        } else {
+          addResponseMessage(`${entry.date} **${entry.user}:** \n\n ${entry.message}`);
+        }
+      });
+    });
+  }
+
+  handleNewUserMessage(message) {
+    sendChatMessage(message, this.props.remoteAccess.sid);
   }
 
   handleClick(e) {
@@ -35,7 +55,7 @@ class Main extends React.Component {
           (<div
             onMouseDown={this.handleClick}
             style={{
-              backgroundImage: 'url(\'../img/diagonal-noise.png\')',
+              backgroundImage: `url(${diagonalNoise})`,
               zIndex: 10000,
               position: 'fixed',
               padding: 0,
@@ -61,6 +81,14 @@ class Main extends React.Component {
         <Grid fluid>
             {this.props.children}
         </Grid>
+        { this.props.remoteAccess.observers.length > 0 ?
+          (<Widget
+            title="Chat"
+            subtitle=""
+            badge={2}
+            handleNewUserMessage={this.handleNewUserMessage}
+          />) : null
+        }
       </div>
     );
   }

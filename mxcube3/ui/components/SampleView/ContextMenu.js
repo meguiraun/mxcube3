@@ -26,7 +26,7 @@ export default class ContextMenu extends React.Component {
                                    key: `wf-${wf.wfname}` });
       } else if (wf.requires.includes('line')) {
         workflowTasks.line.push({ text: wf.wfname,
-                                  action: () => this.showModal('Workflow', wf),
+                                  action: () => this.createLine('Workflow', wf),
                                   key: `wf-${wf.wfname}` });
       } else if (wf.requires.includes('grid')) {
         workflowTasks.grid.push({ text: wf.wfname,
@@ -125,10 +125,10 @@ export default class ContextMenu extends React.Component {
         },
         {
           text: 'Add Helical Scan',
-          action: () => this.createLine(),
+          action: () => this.createLine('Helical'),
           key: 'helical'
         },
-        ...workflowTasks.point,
+        ...workflowTasks.line,
       ],
       LINE: [
         {
@@ -228,16 +228,16 @@ export default class ContextMenu extends React.Component {
     let [x0, y0] = gridData.screenCoord;
     let { cellWidth, cellHeight } = gridData;
 
-    x0 = x0 / imageRatio;
-    y0 = y0 / imageRatio;
-    cellWidth = cellWidth / imageRatio;
-    cellHeight = cellHeight / imageRatio;
+    x0 = x0 * imageRatio;
+    y0 = y0 * imageRatio;
+    cellWidth = cellWidth * imageRatio;
+    cellHeight = cellHeight * imageRatio;
 
-    const hCell = Math.floor((x - x0) / cellWidth);
-    const vCell = Math.floor((y - y0) / cellHeight);
+    const hCell = Math.floor((x - x0) * cellWidth);
+    const vCell = Math.floor((y - y0) * cellHeight);
     const xCell = (hCell + 0.5) * cellWidth + x0;
     const yCell = (vCell + 0.5) * cellHeight + y0;
-    return [xCell * imageRatio, yCell * imageRatio];
+    return [xCell / imageRatio, yCell / imageRatio];
   }
 
   createCollectionOnCell() {
@@ -266,8 +266,9 @@ export default class ContextMenu extends React.Component {
   savePoint() {
     if (this.props.clickCentring) {
       this.props.sampleActions.stopClickCentring();
-      this.props.sampleActions.sendAcceptCentring();
     }
+
+    this.props.sampleActions.sendAcceptCentring();
     this.props.sampleActions.showContextMenu(false);
   }
 
@@ -279,7 +280,7 @@ export default class ContextMenu extends React.Component {
   goToBeam() {
     const { x, y, imageRatio } = this.props;
     this.props.sampleActions.showContextMenu(false);
-    this.props.sampleActions.sendGoToBeam(x * imageRatio, y * imageRatio);
+    this.props.sampleActions.sendGoToBeam(x / imageRatio, y / imageRatio);
   }
 
   removeShape() {
@@ -287,8 +288,9 @@ export default class ContextMenu extends React.Component {
       this.props.sampleActions.sendAbortCentring();
     }
 
-    this.props.sampleActions.sendDeleteShape(this.props.shape.id);
-    this.props.sampleActions.showContextMenu(false);
+    this.props.sampleActions.sendDeleteShape(this.props.shape.id).then(() => {
+      this.props.sampleActions.showContextMenu(false);
+    });
   }
 
   measureDistance() {
@@ -305,21 +307,11 @@ export default class ContextMenu extends React.Component {
     this.props.sampleActions.showContextMenu(false);
 
     const gd = { ...this.props.shape.gridData };
-
-    if (this.props.imageRatio !== 1) {
-      gd.cellHeight = gd.cellHeight * this.props.imageRatio;
-      gd.cellWidth = gd.cellWidth * this.props.imageRatio;
-      gd.width = gd.width * this.props.imageRatio;
-      gd.height = gd.height * this.props.imageRatio;
-      gd.screenCoord[0] = gd.screenCoord[0] * this.props.imageRatio;
-      gd.screenCoord[1] = gd.screenCoord[1] * this.props.imageRatio;
-    }
-
     this.props.sampleActions.sendAddShape({ t: 'G', ...gd });
     this.props.sampleActions.toggleDrawGrid();
   }
 
-  createLine() {
+  createLine(modal, wf = {}) {
     const { shape } = this.props;
     const sid = shape.id;
 
@@ -333,7 +325,7 @@ export default class ContextMenu extends React.Component {
 
     this.props.sampleActions.showContextMenu(false);
     this.props.sampleActions.sendAddShape({ t: 'L', refs: sid },
-      (s) => {this.showModal('Helical', {}, s);});
+      (s) => {this.showModal(modal, wf, s);});
   }
 
   hideContextMenu() {

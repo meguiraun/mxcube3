@@ -1,21 +1,17 @@
 import React from 'react';
 import './app.less';
-import { Button, Checkbox, DropdownButton } from 'react-bootstrap';
-import { QUEUE_RUNNING, QUEUE_PAUSED, QUEUE_STOPPED, QUEUE_STARTED,
-         AUTO_LOOP_CENTRING, CLICK_CENTRING } from '../../constants';
+import { Button } from 'react-bootstrap';
+import { QUEUE_RUNNING, QUEUE_PAUSED, QUEUE_STOPPED, QUEUE_STARTED } from '../../constants';
 
-import NumSnapshotsDropDown from '../../containers/NumSnapshotsDropDown.jsx';
-import GroupFolderInput from '../../containers/GroupFolderInput.jsx';
+import QueueSettings from '../../containers/QueueSettings.jsx';
+import loader from '../../img/busy-indicator.gif';
 
 
 export default class QueueControl extends React.Component {
   constructor(props) {
     super(props);
 
-    this.autoMountNextOnClick = this.autoMountNextOnClick.bind(this);
-    this.setAutoAddDiffPlan = this.setAutoAddDiffPlan.bind(this);
     this.nextSample = this.nextSample.bind(this);
-    this.autoLoopCentringOnClick = this.autoLoopCentringOnClick.bind(this);
 
     this.state = {
       options: {
@@ -56,10 +52,6 @@ export default class QueueControl extends React.Component {
     };
   }
 
-  setAutoAddDiffPlan(e) {
-    this.props.setAutoAddDiffPlan(e.target.checked);
-  }
-
   nextSample() {
     const idx = this.props.queue.indexOf(this.props.mounted);
 
@@ -75,17 +67,6 @@ export default class QueueControl extends React.Component {
     }
   }
 
-  autoMountNextOnClick(e) {
-    this.props.setAutoMountSample(e.target.checked);
-  }
-
-  autoLoopCentringOnClick(e) {
-    if (e.target.checked) {
-      this.props.sendSetCentringMethod(AUTO_LOOP_CENTRING);
-    } else {
-      this.props.sendSetCentringMethod(CLICK_CENTRING);
-    }
-  }
 
   renderSampleOptions(option) {
     return (
@@ -142,6 +123,10 @@ export default class QueueControl extends React.Component {
         }
       }
     }
+
+    const running = this.props.queueStatus === QUEUE_RUNNING;
+    const showBusyIndicator = running ? 'inline' : 'none';
+
     return (
       <div className="m-tree">
         <div className="list-head">
@@ -153,61 +138,12 @@ export default class QueueControl extends React.Component {
               {sampleQueueOptions.map((option) => this.renderSampleOptions(option))}
             </span>
           </div>
-          <div className="queue-settings pull-right">
-            <DropdownButton
-              className="test"
-              bsStyle="default"
-              title={(<span><i className="fa fa-1x fa-cog" /> Settings</span>)}
-              key={1}
-              id={`dropdown-basic-${1}`}
-            >
-              <li role="presentation">
-                <span role="menuitem">
-                  <Checkbox
-                    name="autoMountNext"
-                    onClick={this.autoMountNextOnClick}
-                    defaultChecked={this.props.autoMountNext}
-                  >
-                    Automount next sample
-                  </Checkbox>
-                </span>
-              </li>
-              <li role="presentation">
-                <span role="menuitem">
-                  <Checkbox
-                    onClick={this.autoLoopCentringOnClick}
-                    name="autoLoopCentring"
-                    defaultChecked={this.props.centringMethod === AUTO_LOOP_CENTRING}
-                  >
-                    Auto loop centring
-                  </Checkbox>
-                </span>
-              </li>
-              <li role="presentation">
-                <span role="menuitem">
-                  <Checkbox
-                    name="autoAddDiffPlan"
-                    onClick={this.setAutoAddDiffPlan}
-                    defaultChecked={this.props.autoAddDiffPlan}
-                  >
-                  Auto add diffraction plan
-                  </Checkbox>
-                </span>
-              </li>
-              <li role="separator" className="divider"></li>
-              <li role="presentation">
-                <span role="menuitem">
-                  <NumSnapshotsDropDown />
-                </span>
-              </li>
-              <li role="separator" className="divider"></li>
-              <li role="presentation">
-                <span role="menuitem">
-                  <GroupFolderInput />
-                </span>
-              </li>
-            </DropdownButton>
-          </div>
+          <img
+            src={loader}
+            style={{ display: showBusyIndicator, marginLeft: '25%' }}
+            role="presentation"
+          />
+          <QueueSettings />
         </div>
       </div>
     );

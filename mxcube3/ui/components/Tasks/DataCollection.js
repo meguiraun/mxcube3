@@ -9,7 +9,6 @@ import warn from './warning';
 import { FieldsHeader,
          StaticField,
          InputField,
-         CheckboxField,
          SelectField,
          FieldsRow,
          CollapsableRows } from './fields';
@@ -88,11 +87,6 @@ class DataCollection extends React.Component {
              onClick={this.defaultParameters}
            >
              Default Parameters
-           </Button>
-           <Button bsSize="xsmall" bsStyle="default"
-             onClick={this.resetParameters}
-           >
-             Reset Form
            </Button>
           </ButtonToolbar>
          <ButtonToolbar className="pull-right">
@@ -201,7 +195,12 @@ class DataCollection extends React.Component {
               <InputField propName="transmission" type="number" label="Transmission" />
             </FieldsRow>
             <FieldsRow>
-              <InputField propName="energy" type="number" label="Energy" />
+            <InputField
+              disabled={this.props.beamline.attributes.energy.readonly}
+              propName="energy"
+              type="number"
+              label="Energy"
+            />
               <InputField propName="resolution" type="number" label="Resolution" />
             </FieldsRow>
             { this.props.taskResult.energyScan.length > 0 ?
@@ -224,19 +223,10 @@ class DataCollection extends React.Component {
               </FieldsRow>
               <FieldsRow>
                 <SelectField
-                  propName="beam_size"
-                  label="Beam size"
-                  list={this.props.apertureList}
-                />
-                <SelectField
                   propName="detector_mode"
                   label="Detector mode"
                   list={['0', 'C18', 'C2']}
                 />
-              </FieldsRow>
-              <FieldsRow>
-                <CheckboxField propName="shutterless" label="Shutterless" />
-                <CheckboxField propName="inverse_beam" label="Inverse beam" />
               </FieldsRow>
             </CollapsableRows>
           </Form>
@@ -249,7 +239,7 @@ class DataCollection extends React.Component {
                   label="Space group"
                   list={SPACE_GROUPS}
                 />
-                <b> Unit Cell </b>
+                <b> Unit Cell: </b>
                 <FieldsRow>
                   <InputField col1="1" col2="5" propName="cellA" label="a" />
                   <InputField col1="1" col2="5" propName="cellB" label="b" />
@@ -301,16 +291,17 @@ DataCollection = connect(state => {
     path: `${state.queue.rootPath}/${subdir}`,
     filename: fname,
     acqParametersLimits: state.taskForm.acqParametersLimits,
+    beamline: state.beamline,
     initialValues: {
       ...state.taskForm.taskData.parameters,
       beam_size: state.sampleview.currentAperture,
-      resolution: (state.taskForm.sampleIds ?
+      resolution: (state.taskForm.sampleIds.constructor !== Array ?
         state.taskForm.taskData.parameters.resolution :
         state.beamline.attributes.resolution.value),
-      energy: (state.taskForm.sampleIds ?
+      energy: (state.taskForm.sampleIds.constructor !== Array ?
         state.taskForm.taskData.parameters.energy :
         state.beamline.attributes.energy.value),
-      transmission: (state.taskForm.sampleIds ?
+      transmission: (state.taskForm.sampleIds.constructor !== Array ?
         state.taskForm.taskData.parameters.transmission :
         state.beamline.attributes.transmission.value)
     }

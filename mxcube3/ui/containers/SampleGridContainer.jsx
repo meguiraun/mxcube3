@@ -11,13 +11,15 @@ import {
   layout,
 } from 'react-stonecutter';
 
-import { QUEUE_STOPPED, QUEUE_RUNNING, isCollected } from '../constants';
+import { QUEUE_STOPPED, QUEUE_RUNNING, isCollected, hasLimsData } from '../constants';
 
 import { toggleMovableAction,
          selectSamplesAction,
          sendSetSampleOrderAction } from '../actions/sampleGrid';
 
-import { deleteTask, sendMountSample } from '../actions/queue';
+import { deleteTask, sendMountSample, getLimsDataForTask } from '../actions/queue';
+
+import { unloadSample } from '../actions/sampleChanger';
 
 import { showTaskForm } from '../actions/taskForm';
 
@@ -63,6 +65,9 @@ class SampleGridContainer extends React.Component {
     this.sampleItems = [];
     this.workflowMenuOptions = this.workflowMenuOptions.bind(this);
     this.mountAndCollect = this.mountAndCollect.bind(this);
+    this.unmount = this.unmount.bind(this);
+
+    this.currentCtxMenu = 'contextMenu';
   }
 
 
@@ -95,8 +100,8 @@ class SampleGridContainer extends React.Component {
    */
   onMouseDown(e) {
     const selectionRubberBand = document.getElementById('selectionRubberBand');
-    selectionRubberBand.style.top = `${e.clientY}px`;
-    selectionRubberBand.style.left = `${e.clientX}px`;
+    selectionRubberBand.style.top = `${e.pageY}px`;
+    selectionRubberBand.style.left = `${e.pageX}px`;
     selectionRubberBand.style.width = '0px';
     selectionRubberBand.style.height = '0px';
     this.showRubberBand = true;
@@ -116,8 +121,8 @@ class SampleGridContainer extends React.Component {
     if (this.showRubberBand) {
       const selectionRubberBand = document.getElementById('selectionRubberBand');
       document.getElementById('selectionRubberBand').style.display = 'block';
-      selectionRubberBand.style.width = `${e.clientX - selectionRubberBand.offsetLeft}px`;
-      selectionRubberBand.style.height = `${e.clientY - selectionRubberBand.offsetTop}px`;
+      selectionRubberBand.style.width = `${e.pageX - selectionRubberBand.offsetLeft}px`;
+      selectionRubberBand.style.height = `${e.pageY - selectionRubberBand.offsetTop}px`;
     }
 
     e.preventDefault();
@@ -145,7 +150,7 @@ class SampleGridContainer extends React.Component {
     if (selected.length > 1) {
       this.sampleGridItemsSelectedHandler(e, selected);
     } else {
-      const contextMenu = document.getElementById('contextMenu');
+      const contextMenu = document.getElementById(this.currentCtxMenu);
 
       // If context menu is displayed hide it otherwise select item under cursor
       if (e.button !== 2 && contextMenu.style.display !== 'none') {
@@ -185,16 +190,26 @@ class SampleGridContainer extends React.Component {
     let res = true;
 
     this.selectItemUnderCursor(e);
+    this.currentCtxMenu = 'contextMenu';
+    let contextMenuToHide = 'contextMenuMounted';
+
+    if (Object.keys(this.props.selected)[0] === this.props.sampleChanger.loadedSample.address) {
+      this.currentCtxMenu = 'contextMenuMounted';
+      contextMenuToHide = 'contextMenu';
+    }
+
+    const menuEl = document.getElementById(this.currentCtxMenu);
 
     if (this.props.queue.queueStatus === QUEUE_RUNNING) {
-      document.getElementById('contextMenu').style.display = 'none';
+      menuEl.style.display = 'none';
     } else if (e.target.className.indexOf('samples-grid-item') > -1 && e.button === 2) {
-      document.getElementById('contextMenu').style.top = `${e.pageY}px`;
-      document.getElementById('contextMenu').style.left = `${e.pageX}px`;
-      document.getElementById('contextMenu').style.display = 'block';
+      menuEl.style.top = `${e.pageY}px`;
+      menuEl.style.left = `${e.pageX}px`;
+      menuEl.style.display = 'block';
+      document.getElementById(contextMenuToHide).style.display = 'none';
       res = false;
     } else {
-      document.getElementById('contextMenu').style.display = 'none';
+      menuEl.style.display = 'none';
     }
 
     return res;
@@ -249,6 +264,7 @@ class SampleGridContainer extends React.Component {
                   deleteButtonOnClick={this.taskItemDeleteButtonOnClickHandler}
                   taskData={taskData}
                   taskIndex={i}
+                  getLimsDataForTask={getLimsDataForTask}
                 />))
               }
             </SampleGridItem>
@@ -352,6 +368,7 @@ class SampleGridContainer extends React.Component {
     // First case is included for clarity since the two options
     // cancel each other out. Dont do anything same as both false. Otherwise
     // apply filter.
+
     if (this.props.filterOptions[o1] && this.props.filterOptions[o2]) {
       includeItem = true;
     } else if (!this.props.filterOptions[o1] && !this.props.filterOptions[o2]) {
@@ -393,6 +410,7 @@ class SampleGridContainer extends React.Component {
 
       fi &= this.mutualExclusiveFilterOption(sample, 'inQueue', 'notInQueue', this.inQueueSampleID);
       fi &= this.mutualExclusiveFilterOption(sample, 'collected', 'notCollected', isCollected);
+      fi &= this.mutualExclusiveFilterOption(sample, 'limsSamples', '', hasLimsData);
     }
 
     return fi;
@@ -496,6 +514,7 @@ class SampleGridContainer extends React.Component {
    */
   sampleItemPickButtonOnClickHandler(e, sampleID) {
     e.stopPropagation();
+
     // Is sample already in the set of selected samples, add all those samples
     // to queue
     if (this.sampleItemIsSelected(sampleID)) {
@@ -697,6 +716,51 @@ class SampleGridContainer extends React.Component {
   }
 
 
+  unmount() {
+    this.props.unloadSample(this.props.sampleChanger.loadedSample.address);
+  }
+
+  taskContextMenuItems() {
+    return [
+      <MenuItem divider />,
+      <MenuItem header> <span><Glyphicon glyph="plus" /> Add </span></MenuItem>,
+      <MenuItem eventKey="2" onClick={this.props.showDataCollectionForm}>
+        Data collection
+      </MenuItem>,
+      <MenuItem eventKey="3" onClick={this.props.showCharacterisationForm}>
+        Characterisation
+      </MenuItem>,
+      ...this.workflowMenuOptions(),
+      <MenuItem divider />,
+      <MenuItem header><span><Glyphicon glyph="minus" /> Remove </span></MenuItem>,
+      <MenuItem eventKey="1" onClick={this.props.removeSelectedSamples}>
+        Remove tasks
+      </MenuItem>,
+    ];
+  }
+
+  sampleContextMenu() {
+    return [
+      <MenuItem eventKey="1" onClick={this.props.addSelectedSamplesToQueue}>
+        <span><Glyphicon glyph="unchecked" /> Add to Queue</span>
+      </MenuItem>,
+      <MenuItem eventKey="2" onClick={this.mountAndCollect}>
+        <span><Glyphicon glyph="screenshot" /> Mount </span>
+      </MenuItem>,
+    ];
+  }
+
+  sampleContextMenuMounted() {
+    return [
+      <MenuItem eventKey="1" onClick={this.props.addSelectedSamplesToQueue}>
+        <span><Glyphicon glyph="unchecked" /> Add to Queue</span>
+      </MenuItem>,
+      <MenuItem eventKey="2" onClick={this.unmount}>
+        <span><Glyphicon glyph="share-alt" /> Unmount </span>
+      </MenuItem>
+    ];
+  }
+
   render() {
     this.sampleItems = this.getSampleItems(this.props);
 
@@ -708,27 +772,18 @@ class SampleGridContainer extends React.Component {
         onMouseMove={this.onMouseMove}
       >
         <ul id="contextMenu" style={{ display: 'none' }} className="dropdown-menu" role="menu">
-          <MenuItem eventKey="1" onClick={this.props.addSelectedSamplesToQueue}>
-            <span><Glyphicon glyph="unchecked" /> Add to Queue</span>
-          </MenuItem>
-          <MenuItem eventKey="2" onClick={this.mountAndCollect}>
-            <span><Glyphicon glyph="screenshot" /> Collect </span>
-          </MenuItem>
-          <MenuItem divider />
-          <MenuItem header> <span><Glyphicon glyph="plus" /> Add </span></MenuItem>
-          <MenuItem eventKey="2" onClick={this.props.showDataCollectionForm}>
-            Data collection
-          </MenuItem>
-          <MenuItem eventKey="3" onClick={this.props.showCharacterisationForm}>
-            Characterisation
-          </MenuItem>
-          {this.workflowMenuOptions()}
-          <MenuItem divider />
-          <MenuItem header><span><Glyphicon glyph="minus" /> Remove </span></MenuItem>
-          <MenuItem eventKey="1" onClick={this.props.removeSelectedSamples}>
-            Remove tasks
-          </MenuItem>
+          {this.sampleContextMenu()}
+          {this.taskContextMenuItems()}
         </ul>
+        <ul id="contextMenuMounted"
+          style={{ display: 'none' }}
+          className="dropdown-menu"
+          role="menu"
+        >
+          {this.sampleContextMenuMounted()}
+          {this.taskContextMenuItems()}
+        </ul>
+
         <div className="selection-rubber-band" id="selectionRubberBand" />
         <CSSGrid
           component="ul"
@@ -778,6 +833,7 @@ function mapDispatchToProps(dispatch) {
     showTaskParametersForm: bindActionCreators(showTaskForm, dispatch),
     deleteTask: bindActionCreators(deleteTask, dispatch),
     sendMountSample: bindActionCreators(sendMountSample, dispatch),
+    unloadSample: bindActionCreators(unloadSample, dispatch),
     toggleMovableAction: (key) => dispatch(toggleMovableAction(key)),
     selectSamples: (keys, selected) => dispatch(selectSamplesAction(keys, selected)),
   };

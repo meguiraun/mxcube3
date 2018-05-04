@@ -11,8 +11,15 @@ import qutils
 from mxcube3 import app as mxcube
 from flask import session
 
+
+
 def new_sample_list():
     return {"sampleList": {}, 'sampleOrder': []}
+
+
+def init_sample_list():
+    sample_list_set(new_sample_list())
+
 
 def sample_list_set(sample_list):
     mxcube.SAMPLE_LIST = sample_list
@@ -38,7 +45,7 @@ def sample_list_sync_sample(lims_sample):
     sample_to_update = None
 
     # LIMS sample has code, check if the code was read by SC
-    if lims_code and scutils.sc_contetns_from_code_get(lims_code):
+    if lims_code and scutils.sc_contents_from_code_get(lims_code):
         sample_to_update = scutils.sc_contents_from_code_get(lims_code)
     elif lims_location:
         # Asume that the samples have been put in the right place of the SC
@@ -50,9 +57,8 @@ def sample_list_sync_sample(lims_sample):
 
 
 def synch_sample_list_with_queue(current_queue=None):
-
     if not current_queue:
-        current_queue = qutils.queue_to_dict()
+        current_queue = qutils.queue_to_dict(include_lims_data=True)
 
     sample_order = current_queue.get("sample_order", [])
 
@@ -65,7 +71,7 @@ def synch_sample_list_with_queue(current_queue=None):
             if data.get("sampleName", ""):
                 sample.pop("sampleName")
 
-            if  data.get("proteinAcronym", ""):
+            if data.get("proteinAcronym", ""):
                 sample.pop("proteinAcronym")
 
             sample_list_update_sample(loc, sample)
@@ -87,8 +93,11 @@ def sample_list_update_sample(loc, sample):
 def apply_template(params, sample_model, path_template):
     # Apply subdir template if used:
     if '{' in params.get('subdir', ''):
-        params['subdir'] = params['subdir'].format(NAME=sample_model.get_name(),
-                                                   ACRONYM=sample_model.crystals[0].protein_acronym)
+        if sample_model.crystals[0].protein_acronym:
+            params['subdir'] = params['subdir'].format(NAME=sample_model.get_name(),
+                ACRONYM=sample_model.crystals[0].protein_acronym)
+        else:
+              params['subdir'] = sample_model.get_name()
 
         if params['subdir'].endswith('-'):
             params['subdir'] = sample_model.get_name()
@@ -131,6 +140,16 @@ def strip_prefix(pt, prefix):
     return prefix
 
 
+def lims_existing_session(login_res):
+    return not login_res.get("Session", {}).get("new_session_flag", True)
+
+def lims_is_inhouse(login_res):
+    return login_res.get("Session", {}).get("is_inhouse", False)
+
+def lims_valid_login(login_res):
+    return login_res['status']['code'] == 'ok'
+
+
 def lims_login(loginID, password):
     """
     :param str loginID: Username
@@ -153,11 +172,6 @@ def lims_login(loginID, password):
         return ERROR_CODE
 
     if mxcube.db_connection.loginType.lower() == 'user':
-        # soap will autocreate a session if empty, this is the only reason for this
-        # login_res = mxcube.db_connection.login(loginID, password)
-        # the rest interface does not create session, but the soap login only returns one proposal
-        # if we auth by username we need all the associated proposals for later select
-
         try:
             connection_ok = mxcube.db_connection.echo()
             if not connection_ok:
@@ -167,8 +181,8 @@ def lims_login(loginID, password):
             logging.getLogger('HWR').error(msg)
             return ERROR_CODE
 
-        try:
 
+        try:
             proposals = mxcube.db_connection.get_proposals_by_user(loginID)
 
             logging.getLogger('HWR').info('[LIMS] Retrieving proposal list for user: %s, proposals: %s' % (loginID, proposals))
@@ -176,35 +190,31 @@ def lims_login(loginID, password):
         except:
             logging.getLogger('HWR').error('[LIMS] Could not retreive proposal list, %s' % sys.exc_info()[1])
             return ERROR_CODE
+
         for prop in session['proposal_list']:
-            # if len(prop['Session']) == 0:
             todays_session = mxcube.db_connection.get_todays_session(prop)
             prop['Session'] = [todays_session['session']]
-            # elif not prop['Session'][0]['scheduled']:
-            #     todays_session = mxcube.db_connection.get_todays_session(prop)
-            #     prop['Session'] = [todays_session]
 
-    	# append a dummy proposal data so staff can select instead of their own research
         if hasattr(mxcube.session, 'commissioning_fake_proposal') and mxcube.session.is_inhouse(loginID, None):
             dummy = mxcube.session.commissioning_fake_proposal
-    	    session['proposal_list'].append(dummy)
+            session['proposal_list'].append(dummy)
 
         login_res['proposalList'] = session['proposal_list']
         login_res['status'] = {"code": "ok", "msg": "Successful login"}
 
     else:
         try:
-            aux = mxcube.db_connection.login(loginID, password)
-            status = aux['status']
-            aux = mxcube.db_connection.get_proposal(
-                 aux['Proposal']['code'], aux['Proposal']['number'])
+            login_res = mxcube.db_connection.login(loginID, password)
+            proposal = mxcube.db_connection.\
+                       get_proposal(login_res['Proposal']['code'],
+                                    login_res['Proposal']['number'])
+
         except:
             logging.getLogger('HWR').error('[LIMS] Could not login to LIMS')
             return ERROR_CODE
 
-        login_res['proposalList'] = [aux]
-        login_res['status'] = status
-        session['proposal_list'] = [aux]
+        session['proposal_list'] = [proposal]
+        login_res['proposalList'] =  [proposal]
 
     logging.getLogger('HWR').info('[LIMS] Logged in, proposal data: %s' % login_res)
 
@@ -255,20 +265,28 @@ def select_proposal(proposal):
 
 
 def get_default_prefix(sample_data, generic_name):
-    sample = qmo.Sample()
-    sample.code = sample_data.get("code", "")
-    sample.name = sample_data.get("sampleName", "")
-    sample.location = sample_data.get("location", "").split(':')
-    sample.lims_id = sample_data.get("limsID", -1)
-    sample.crystals[0].protein_acronym = sample_data.get("proteinAcronym", "")
+    if isinstance(sample_data, dict):
+        sample = qmo.Sample()
+        sample.code = sample_data.get("code", "")
+        sample.name = sample_data.get("sampleName", "")
+        sample.location = sample_data.get("location", "").split(':')
+        sample.lims_id = sample_data.get("limsID", -1)
+        sample.crystals[0].protein_acronym = sample_data.get("proteinAcronym", "")
+    else:
+        sample = sample_data
 
     return mxcube.session.get_default_prefix(sample, generic_name)
+
 
 def get_default_subdir(sample_data):
     subdir = ""
 
-    sample_name = sample_data.get("sampleName", "")
-    protein_acronym = sample_data.get("proteinAcronym", "")
+    if isinstance(sample_data, dict):
+        sample_name = sample_data.get("sampleName", "")
+        protein_acronym = sample_data.get("proteinAcronym", "")
+    else:
+        sample_name = sample_data.name
+        protein_acronym = sample_data.crystals[0].protein_acronym
 
     if protein_acronym:
         subdir = "%s/%s-%s/" %(protein_acronym, protein_acronym, sample_name)
@@ -277,12 +295,15 @@ def get_default_subdir(sample_data):
 
     return subdir
 
+
 def get_dc_link(col_id):
     link = mxcube.rest_lims.dc_link(col_id)
+
     if not link:
         link = mxcube.db_connection.dc_link(col_id)
 
     return link
+
 
 def convert_to_dict(ispyb_object):
     d = {}

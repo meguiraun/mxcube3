@@ -36,6 +36,7 @@ function mapStateToProps(state) {
     plotsData: state.beamline.plotsData,
     plotsInfo: state.beamline.plotsInfo,
     selectedShapes: state.sampleview.selectedShapes
+    shapes: state.shapes
   };
 }
 
@@ -209,6 +210,7 @@ export default class SampleQueueContainer extends React.Component {
               addTask={addTask}
               plotsData={this.props.plotsData}
               plotsInfo={this.props.plotsInfo}
+              shapes={this.props.shapes}
             />
             <TodoTree
               show={visibleList === 'todo'}

@@ -45,6 +45,7 @@ import { showConfirmClearQueueDialog } from '../actions/general';
 import { showTaskForm } from '../actions/taskForm';
 import SampleGridContainer from './SampleGridContainer';
 import ConfirmActionDialog from '../components/GenericDialog/ConfirmActionDialog';
+import QueueSettings from './QueueSettings.jsx';
 
 import { SAMPLE_ITEM_WIDTH,
          SAMPLE_ITEM_SPACE } from '../components/SampleGrid/SampleGridItem';
@@ -117,7 +118,7 @@ class SampleGridViewContainer extends React.Component {
       notInQueue: this.props.filterOptions.notInQueue,
       collected: this.props.filterOptions.collected,
       notCollected: this.props.filterOptions.notCollected,
-      limsSynched: this.props.filterOptions.limsSynched,
+      limsSamples: this.props.filterOptions.limsSamples,
       filterText: this.props.filterOptions.text,
       puckFilter: this.props.filterOptions.puckFilter
     };
@@ -189,14 +190,14 @@ class SampleGridViewContainer extends React.Component {
   showTaskForm(formName, extraParams = {}) {
     let prefix = '';
     const path = '';
-    let subdir = '';
+    let subdir = `${this.props.queue.groupFolder}`;
 
     if (Object.keys(this.props.selected).length === 1) {
       prefix = this.props.sampleList[Object.keys(this.props.selected)[0]].defaultPrefix;
-      subdir = this.props.sampleList[Object.keys(this.props.selected)[0]].defaultSubDir;
+      subdir += this.props.sampleList[Object.keys(this.props.selected)[0]].defaultSubDir;
     } else {
       prefix = this.props.defaultParameters[formName.toLowerCase()].prefixTemplate;
-      subdir = this.props.defaultParameters[formName.toLowerCase()].subDirTemplate;
+      subdir += this.props.defaultParameters[formName.toLowerCase()].subDirTemplate;
     }
 
     const parameters = { parameters: {
@@ -237,7 +238,11 @@ class SampleGridViewContainer extends React.Component {
       return;
     }
 
-    this.props.syncSamples(proposalId);
+    if (Object.keys(this.props.sampleList).length === 0) {
+      this.props.getSamples().then(() => { this.props.syncSamples(proposalId); });
+    } else {
+      this.props.syncSamples(proposalId);
+    }
   }
 
 
@@ -249,7 +254,7 @@ class SampleGridViewContainer extends React.Component {
             this.props.filterOptions.notInQueue ||
             this.props.filterOptions.collected ||
             this.props.filterOptions.notCollected ||
-            this.props.filterOptions.limsSynched ||
+            this.props.filterOptions.limsSamples ||
             (this.props.filterOptions.text.length > 0));
   }
 
@@ -264,7 +269,7 @@ class SampleGridViewContainer extends React.Component {
       notInQueue: { notInQueue: e.target.checked },
       collected: { collected: e.target.checked },
       notCollected: { notCollected: e.target.checked },
-      limsSynched: { limsSynched: e.target.checked },
+      limsSamples: { limsSamples: e.target.checked },
       filterText: { text: ReactDOM.findDOMNode(this.filterInput).value.trim() }
     };
 
@@ -280,7 +285,7 @@ class SampleGridViewContainer extends React.Component {
                         notInQueue: false,
                         collected: false,
                         notCollected: false,
-                        limsSynched: false,
+                        limsFilter: false,
                         filterText: '' });
   }
 
@@ -332,7 +337,10 @@ class SampleGridViewContainer extends React.Component {
     const samplesToRemove = [];
     for (const sampleID of sampleIDList) {
       if (this.inQueue(sampleID)) {
-        samplesToRemove.push(sampleID);
+        // Do not remove currently mounted sample
+        if (this.props.queue.current.sampleID !== sampleID) {
+          samplesToRemove.push(sampleID);
+        }
       } else {
         samples.push(sampleID);
       }
@@ -424,6 +432,7 @@ class SampleGridViewContainer extends React.Component {
         className="btn btn-success pull-right"
         onClick={this.startCollect}
         disabled={this.isCollectDisabled()}
+        style={{ marginLeft: '1em' }}
       >
         {collectText}
         <Glyphicon glyph="chevron-right" />
@@ -431,7 +440,11 @@ class SampleGridViewContainer extends React.Component {
 
     if (this.props.queue.queueStatus === QUEUE_RUNNING) {
       button = (
-        <Button className="btn btn-danger pull-right" onClick={this.props.sendStopQueue}>
+        <Button
+          className="btn btn-danger pull-right"
+          onClick={this.props.sendStopQueue}
+          style={{ marginLeft: '1em' }}
+        >
           <b> Stop queue </b>
         </Button>);
     }
@@ -531,6 +544,25 @@ class SampleGridViewContainer extends React.Component {
                     </Row>
                   </Col>
                 </Row>
+                <Row>
+                  <Col xs={12}>
+                    <Row>
+                      <Col xs={6}>
+                        <Checkbox
+                          inline
+                          id="limsSamples"
+                          checked={this.getFilterOptionValue('limsSamples')}
+                          onChange={this.sampleGridFilter}
+                        >
+                          LIMS Samples
+                        </Checkbox>
+                      </Col>
+                      <Col xs={6}>
+                        <span />
+                      </Col>
+                    </Row>
+                  </Col>
+                </Row>
               </div>
               <div className="pull-right">
                 <Button onClick={this.sampleGridClearFilter}>
@@ -614,7 +646,7 @@ class SampleGridViewContainer extends React.Component {
                   </OverlayTrigger>
                 </Form>
               </Col>
-              <Col xs={7}>
+              <Col xs={6}>
                 <Form inline>
                   <FormGroup>
                     <ControlLabel>Filter: &nbsp;</ControlLabel>
@@ -647,8 +679,9 @@ class SampleGridViewContainer extends React.Component {
                   </SplitButton>
                 </Form>
               </Col>
-              <Col xs={1} className="pull-right">
+              <Col xs={2} className="pull-right">
                 {this.collectButton()}
+                <QueueSettings / >
               </Col>
             </Row>
           </Sticky>

@@ -33,23 +33,30 @@ export default class SampleControls extends React.Component {
   }
 
   toggleDrawGrid() {
+    // Cancel click centering before draw grid is started
+    if (this.props.clickCentring) {
+      this.props.sampleActions.sendAbortCentring();
+    }
+
     this.props.sampleActions.toggleDrawGrid();
   }
 
   doTakeSnapshot() {
     const img = document.getElementById('sample-img');
     const fimg = new fabric.Image(img);
+    fimg.scale(this.props.imageRatio);
     let imgDataURI = '';
     this.props.canvas.setBackgroundImage(fimg);
     this.props.canvas.renderAll();
     imgDataURI = this.props.canvas.toDataURL({ format: 'jpeg' });
     this.props.canvas.setBackgroundImage(0);
     this.props.canvas.renderAll();
-    return imgDataURI;
+    return { data: imgDataURI.slice(23), mime: imgDataURI.slice(0, 23) };
   }
 
   takeSnapShot() {
-    document.getElementById('downloadLink').href = this.doTakeSnapshot();
+    const img = this.doTakeSnapshot();
+    document.getElementById('downloadLink').href = img.mime + img.data;
     const sampleName = this.props.sampleList[this.props.current.sampleID].sampleName;
     const filename = `${this.props.proposal}-${sampleName}.jpeg`;
     document.getElementById('downloadLink').download = filename;
@@ -58,6 +65,12 @@ export default class SampleControls extends React.Component {
   toggleCentring() {
     const { sendStartClickCentring, sendAbortCentring } = this.props.sampleActions;
     const { clickCentring } = this.props;
+
+    // If draw grid tool enabled, disable it before starting centering
+    if (this.props.drawGrid) {
+      this.props.sampleActions.toggleDrawGrid();
+    }
+
     if (clickCentring) {
       sendAbortCentring();
     } else {
@@ -103,6 +116,17 @@ export default class SampleControls extends React.Component {
         }}
       >
         <span className={`fa ${autoScaleGClass}`} /> Auto Scale
+      </MenuItem>));
+
+    items.push((
+      <MenuItem
+        eventKey="3"
+        key="reset"
+        onClick={() => {
+          window.initJSMpeg();
+        }}
+      >
+        <span className="fa fa-redo" /> Reset
       </MenuItem>));
 
     return items;

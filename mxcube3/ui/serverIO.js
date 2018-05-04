@@ -19,6 +19,7 @@ import { setActionState,
          plotEnd } from './actions/beamlineActions';
 import { setStatus,
          addTaskResultAction,
+         updateTaskLimsData,
          addTaskAction,
          sendStopQueue,
          setCurrentSample,
@@ -33,6 +34,9 @@ import { setLoading,
 import { showWorkflowParametersDialog } from './actions/workflow';
 
 import { setObservers, setMaster, requestControlAction } from './actions/remoteAccess';
+import { doSignOut } from './actions/login';
+
+import { addResponseMessage } from 'react-chat-widget';
 
 import { setSCState,
          setLoadedSample,
@@ -41,7 +45,7 @@ import { setSCState,
 
 import { setEnergyScanResult } from './actions/taskResults';
 
-import { forceSignOut } from './actions/login';
+import { CLICK_CENTRING } from './constants';
 
 class ServerIO {
 
@@ -69,26 +73,26 @@ class ServerIO {
   }
 
   connectStateSocket(statePersistor) {
-    this.uiStateSocket = io.connect(`http://${document.domain}:${location.port}/ui_state`);
+    this.uiStateSocket = io.connect(`//${document.domain}:${location.port}/ui_state`);
 
     this.uiStateSocket.on('state_update', (newState) => {
       statePersistor.rehydrate(JSON.parse(newState));
     });
   }
 
-  setRemoteAccessMaster(cb) {
-    this.hwrSocket.emit('setRaMaster', { master: true, name: null }, cb);
+  setRemoteAccessMaster(name, cb) {
+    this.hwrSocket.emit('setRaMaster', { master: true, name }, cb);
   }
 
-  setRemoteAccessObserver(observer, name, cb) {
-    this.hwrSocket.emit('setRaMaster', { master: false, name }, cb);
+  setRemoteAccessObserver(name, cb) {
+    this.hwrSocket.emit('setRaObserver', { master: true, name }, cb);
   }
 
   listen(store) {
     this.dispatch = store.dispatch;
 
-    this.hwrSocket = io.connect(`http://${document.domain}:${location.port}/hwr`);
-    this.loggingSocket = io.connect(`http://${document.domain}:${location.port}/logging`);
+    this.hwrSocket = io.connect(`//${document.domain}:${location.port}/hwr`);
+    this.loggingSocket = io.connect(`//${document.domain}:${location.port}/logging`);
 
     this.loggingSocket.on('log_record', (record) => {
       this.dispatch(addLogRecord(record));
@@ -97,6 +101,13 @@ class ServerIO {
         this.dispatch(addUserMessage(record, 'queue'));
       } else {
         this.dispatch(addUserMessage(record));
+      }
+    });
+
+    this.hwrSocket.on('ra_chat_message', (record) => {
+      const sid = store.getState().remoteAccess.sid;
+      if (record.sid !== sid) {
+        addResponseMessage(`${record.date} **${record.user}:** \n\n ${record.message}`);
       }
     });
 
@@ -134,6 +145,10 @@ class ServerIO {
 
     this.hwrSocket.on('energy_scan_result', (data) => {
       this.dispatch(setEnergyScanResult(data.pk, data.ip, data.rm));
+    });
+
+    this.hwrSocket.on('update_task_lims_data', (record) => {
+      this.dispatch(updateTaskLimsData(record.sample, record.taskIndex, record.limsResultData));
     });
 
     this.hwrSocket.on('task', (record, callback) => {
@@ -179,6 +194,7 @@ class ServerIO {
       if (record.Signal === 'DisableSample') {
         this.dispatch(setSampleAttribute(record.sampleID, 'checked', false));
       } else {
+        window.initJSMpeg();
         this.dispatch(setStatus(record.Signal));
       }
     });
@@ -200,10 +216,15 @@ class ServerIO {
       }
     });
 
-    this.hwrSocket.on('sample_centring', () => {
-      this.dispatch(startClickCentring());
-      const msg = '3-Click Centring: <br /> Select centered position or center';
-      this.dispatch(videoMessageOverlay(true, msg));
+    this.hwrSocket.on('sample_centring', (data) => {
+      if (data.method === CLICK_CENTRING) {
+        this.dispatch(startClickCentring());
+        const msg = '3-Click Centring: <br /> Select centered position or center';
+        this.dispatch(videoMessageOverlay(true, msg));
+      } else {
+        const msg = 'Auto loop centring: <br /> Save position or re-center';
+        this.dispatch(videoMessageOverlay(true, msg));
+      }
     });
 
     this.hwrSocket.on('disconnect', () => {
@@ -230,29 +251,51 @@ class ServerIO {
       this.dispatch(setObservers(data));
     });
 
+    this.hwrSocket.on('observerLogout', (observer) => {
+      addResponseMessage(`**${observer.name}** (${observer.host}) disconnected.`);
+    });
+
+    this.hwrSocket.on('observerLogin', (observer) => {
+      if (observer.name && observer.host) {
+        addResponseMessage(`**${observer.name}** (${observer.host}) connected.`);
+      } else {
+        addResponseMessage(`${observer.host} connecting ...`);
+      }
+    });
+
+    this.hwrSocket.on('forceSignoutObservers', () => {
+      const ra = store.getState().remoteAccess;
+
+      if (!ra.master) {
+        this.dispatch(doSignOut());
+      }
+    });
+
     this.hwrSocket.on('workflowParametersDialog', (data) => {
       this.dispatch(showWorkflowParametersDialog(data));
     });
 
     this.hwrSocket.on('setMaster', (data) => {
-      const ra = store.getState().remoteAccess;
+      const state = store.getState();
+      const ra = state.remoteAccess;
 
-      if (ra.sid === data.sid && !ra.master) {
-        // Given control
-        this.dispatch(setMaster(true));
+      // Given control
+      if (!ra.master) {
+        this.dispatch(setMaster(true, data.name, data.sid));
         this.dispatch(setLoading(true, 'You were given control', data.message));
-      } else if (ra.sid === data.sid && ra.master) {
-        // Keep control
-        this.dispatch(setMaster(true));
-      } else if (!ra.master) {
-        // Control was denied
-        if (ra.requestingControl) {
-          this.dispatch(setLoading(true, 'You were denied control', data.message));
-          this.dispatch(requestControlAction(false));
-        }
-      } else if (ra.master) {
-        // Lost control
-        this.dispatch(setMaster(false));
+      }
+    });
+
+    this.hwrSocket.on('setObserver', (data) => {
+      const state = store.getState();
+      const ra = state.remoteAccess;
+
+      // Control was denied by master or control was taken by force
+      if (ra.requestingControl) {
+        this.dispatch(setLoading(true, 'You were denied control', data.message));
+        this.dispatch(requestControlAction(false));
+      } else {
+        this.dispatch(setMaster(false, data.name, data.sid));
       }
     });
 

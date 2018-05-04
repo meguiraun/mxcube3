@@ -1,16 +1,40 @@
 import React from 'react';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-import Observer from '../components/RemoteAccess/Observer';
-import Master from '../components/RemoteAccess/Master';
+import { Panel, Checkbox } from 'react-bootstrap';
+
+import RequestControlForm from '../components/RemoteAccess/RequestControlForm';
+import UserList from '../components/RemoteAccess/UserList';
+
+import { sendAllowRemote, sendTimeoutGivesControl } from '../actions/remoteAccess';
 
 export class RemoteAccessContainer extends React.Component {
+  getRAOptions() {
+    let content = (<div className="col-xs-4">
+                     <Panel header="RA Options">
+                       <Checkbox
+                         onClick={(e) => this.props.sendAllowRemote(e.target.checked)}
+                         defaultChecked={this.props.remoteAccess.allowRemote}
+                         checked={this.props.remoteAccess.allowRemote}
+                       >
+                         Enable remote access
+                       </Checkbox>
+                       <Checkbox
+                         onClick={(e) => this.props.sendTimeoutGivesControl(e.target.checked)}
+                         defaultChecked={this.props.remoteAccess.timeoutGivesControl}
+                         checked={this.props.remoteAccess.timeoutGivesControl}
+                       >
+                         Timeout gives control
+                       </Checkbox>
+                     </Panel>
+                   </div>);
 
-  getContent() {
-    let content = (<Master />);
 
-    if (!this.props.remoteAccess.master) {
-      content = (<Observer />);
+    const loginRes = this.props.login.loginInfo.loginRes;
+
+    if (loginRes && !loginRes.Session.is_inhouse) {
+      content = null;
     }
 
     return content;
@@ -19,7 +43,15 @@ export class RemoteAccessContainer extends React.Component {
   render() {
     return (
       <div className="col-xs-12">
-        {this.getContent()}
+        { !this.props.remoteAccess.master ?
+          (<div className="col-xs-4">
+            <RequestControlForm />
+           </div>) : null
+        }
+        <div className="col-xs-4">
+          <UserList />
+        </div>
+        {this.getRAOptions()}
       </div>
     );
   }
@@ -28,10 +60,19 @@ export class RemoteAccessContainer extends React.Component {
 
 function mapStateToProps(state) {
   return {
-    remoteAccess: state.remoteAccess
+    remoteAccess: state.remoteAccess,
+    login: state.login
+  };
+}
+
+function mapDispatchToProps(dispatch) {
+  return {
+    sendAllowRemote: bindActionCreators(sendAllowRemote, dispatch),
+    sendTimeoutGivesControl: bindActionCreators(sendTimeoutGivesControl, dispatch)
   };
 }
 
 export default connect(
-    mapStateToProps,
+   mapStateToProps,
+   mapDispatchToProps
 )(RemoteAccessContainer);

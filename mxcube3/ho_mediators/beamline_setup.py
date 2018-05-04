@@ -124,7 +124,7 @@ class _BeamlineSetupMediator(object):
             fast_shutter = self.getObjectByRole("fast_shutter")
             attributes.update({"fast_shutter": fast_shutter.dict_repr()})
         except Exception:
-            logging.getLogger("HWR").warning("Failed to get fast_shutter info")
+            logging.getLogger("HWR").error("Failed to get fast_shutter info")
 
         try:
             safety_shutter = self.getObjectByRole("safety_shutter")
@@ -136,7 +136,13 @@ class _BeamlineSetupMediator(object):
             beamstop = self.getObjectByRole("beamstop")
             attributes.update({"beamstop": beamstop.dict_repr()})
         except Exception:
-            logging.getLogger("HWR").warning("Failed to get beamstop info")
+            logging.getLogger("HWR").error("Failed to get beamstop info")
+
+        try:
+            capillary = self.getObjectByRole("capillary")
+            attributes.update({"capillary": capillary.dict_repr()})
+        except Exception:
+            logging.getLogger("HWR").error("Failed to get capillary info")
 
         try:
             detdist = self.getObjectByRole("dtox")
@@ -260,12 +266,19 @@ class HOMediatorBase(object):
     # Abstract method
     def msg(self):
         """
-        :returns: Returns a message describing the current state, should be 
+        :returns: Returns a message describing the current state, should be
                   used to communicate details of the state to the user.
 
         :rtype: str
         """
         return ""
+
+    def read_only(self):
+        """
+        :returns: Returns true if the attribute is read only, (cant be set)
+        :rtype: Boolean
+        """
+        return False
 
     def dict_repr(self):
         """
@@ -279,17 +292,18 @@ class HOMediatorBase(object):
                 "msg": self.msg(),
                 "type": "FLOAT",
                 "precision": self.precision(),
-                "step": self.step_size()
+                "step": self.step_size(),
+                "readonly": self.read_only()
                 }
 
         return data
 
-    # Dont't limit rate this method with Utils.LimitRate, all sub-classes 
+    # Dont't limit rate this method with Utils.LimitRate, all sub-classes
     # will share this method thus all updates wont be sent if limit rated.
     # Rather LimitRate the function calling this one.
     def value_change(self, *args, **kwargs):
         """
-        Signal handler to be used for sending values to the client via 
+        Signal handler to be used for sending values to the client via
         socketIO.
         """
         data = {"name": self._name, "value": args[0]}
@@ -297,7 +311,7 @@ class HOMediatorBase(object):
 
     def state_change(self, *args, **kwargs):
         """
-        Signal handler to be used for sending the state to the client via 
+        Signal handler to be used for sending the state to the client via
         socketIO
         """
         socketio.emit("beamline_value_change", self.dict_repr(), namespace="/hwr")
@@ -310,8 +324,13 @@ class EnergyHOMediator(HOMediatorBase):
     """
     def __init__(self, ho, name=''):
         super(EnergyHOMediator, self).__init__(ho, name)
-        ho.connect("positionChanged", self._value_change)
-        ho.connect("stateChanged", self.state_change)
+        if ho.tunable:
+            try:
+                ho.connect("energyChanged", self._value_change)
+                ho.energy_motor.connect("stateChanged", self.state_change)
+            except:
+                pass
+
         self._precision = 4
 
     @Utils.RateLimited(6)
@@ -371,10 +390,13 @@ class EnergyHOMediator(HOMediatorBase):
         try:
             energy_limits = self._ho.getEnergyLimits()
         except (AttributeError, TypeError):
-            energy_limits = (0, 50)
+            energy_limits = (0, 0)
             raise ValueError("Could not get limits")
 
         return energy_limits
+
+    def read_only(self):
+        return not self._ho.tunable
 
 class WavelengthHOMediator(HOMediatorBase):
     """
@@ -383,16 +405,20 @@ class WavelengthHOMediator(HOMediatorBase):
     """
     def __init__(self, ho, name=''):
         super(WavelengthHOMediator, self).__init__(ho, name)
-        
-        ho.connect("energyChanged", self._value_change)
-        ho.energy_motor.connect("stateChanged", self.state_change)
+
+        if ho.tunable:
+            try:
+                ho.connect("energyChanged", self._value_change)
+                ho.energy_motor.connect("stateChanged", self.state_change)
+            except:
+                pass
 
         self._precision = 4
 
     @Utils.RateLimited(6)
-    def _value_change(self, *args, **kwargs):
-        self.value_change(args[1])
-    
+    def _value_change(self, pos, wl, *args, **kwargs):
+        self.value_change(wl)
+
     def set(self, value):
         """
         :param value: Value (castable to float) to set
@@ -451,6 +477,9 @@ class WavelengthHOMediator(HOMediatorBase):
 
         return energy_limits
 
+    def read_only(self):
+        return not self._ho.tunable
+
 
 class DuoStateHOMediator(HOMediatorBase):
     def __init__(self, ho, name=''):
@@ -488,7 +517,7 @@ class DuoStateHOMediator(HOMediatorBase):
 
         return state
 
-    def _close(self):        
+    def _close(self):
         if isinstance(self._ho, MicrodiffInOut.MicrodiffInOut):
             self._ho.actuatorOut()
         elif isinstance(self._ho, TangoShutter.TangoShutter) or \
@@ -558,7 +587,8 @@ class DuoStateHOMediator(HOMediatorBase):
                 "state": self.state(),
                 "msg": self.msg(),
                 "commands": self.commands(),
-                "type": "DUOSTATE"
+                "type": "DUOSTATE",
+                "readonly": self.read_only()
                 }
 
         return data
@@ -652,6 +682,7 @@ class ResolutionHOMediator(HOMediatorBase):
         """
         :returns: The resolution limits.
         """
+
         try:
             resolution_limits = self._ho.getLimits()
         except (AttributeError, TypeError):
@@ -679,20 +710,24 @@ class ResolutionHOMediator(HOMediatorBase):
             return 0
 
     def get_lookup_limits(self):
-        e_min, e_max = self._ho.energy.getEnergyLimits()
-
         limits = []
-        x = arange(float(e_min), float(e_max), 0.5)
 
-        radius = self._ho.det_radius
-        det_dist = self.dtox
+        if self._ho.energy.tunable:
+            e_min, e_max = self._ho.energy.getEnergyLimits()
 
-        pos_min, pos_max = det_dist.getLimits()
+            x = arange(float(e_min), float(e_max), 0.5)
 
-        for energy in x:
-            res_min, res_max = self._calc_res(radius, energy, pos_min),\
-                self._calc_res(radius, energy, pos_max)
-            limits.append((energy, res_min, res_max))
+            radius = self._ho.det_radius
+            det_dist = self.dtox
+
+            pos_min, pos_max = det_dist.getLimits()
+
+            for energy in x:
+                res_min, res_max = self._calc_res(radius, energy, pos_min),\
+                                   self._calc_res(radius, energy, pos_max)
+                limits.append((energy, res_min, res_max))
+        else:
+            limits = self.limits()
 
         return limits
 
@@ -707,7 +742,8 @@ class ResolutionHOMediator(HOMediatorBase):
                 "state": self.state(),
                 "msg": self.msg(),
                 "precision": self.precision(),
-                "step": self.step_size()
+                "step": self.step_size(),
+                "readonly": self.read_only()
                 }
 
         return data
@@ -715,7 +751,7 @@ class ResolutionHOMediator(HOMediatorBase):
 
 class DetectorDistanceHOMediator(HOMediatorBase):
     def __init__(self, ho, name=''):
-        super(DetectorDistanceHOMediator, self).__init__(ho, name)        
+        super(DetectorDistanceHOMediator, self).__init__(ho, name)
 
         ho.dtox.connect("positionChanged", self._value_change)
         ho.dtox.connect("stateChanged", self.state_change)
@@ -761,15 +797,15 @@ class DetectorDistanceHOMediator(HOMediatorBase):
 class MachineInfoHOMediator(HOMediatorBase):
     def __init__(self, ho, name=''):
         super(MachineInfoHOMediator, self).__init__(ho, name)
-        ho.connect("valueChanged", self._state_change)
+        ho.connect("valueChanged", self._value_change)
         self._precision = 1
 
     def set(self, value):
         pass
 
     @Utils.RateLimited(0.1)
-    def _state_change(self, *args, **kwargs):
-        self.value_change(*args, **kwargs)
+    def _value_change(self, *args, **kwargs):
+        self.value_change(self.get(), **kwargs)
 
     def get(self):
         return {"current": self.get_current(),
@@ -821,11 +857,15 @@ class PhotonFluxHOMediator(HOMediatorBase):
         super(PhotonFluxHOMediator, self).__init__(ho, name)
 
         try:
-            ho.connect("valueChanged", self.state_change)
+            ho.connect("valueChanged", self._value_change)
         except:
             pass
 
         self._precision = 1
+
+    @Utils.RateLimited(6)
+    def _value_change(self, *args, **kwargs):
+        self.value_change(*args, **kwargs)
 
     def set(self, value):
         pass
@@ -860,7 +900,8 @@ class PhotonFluxHOMediator(HOMediatorBase):
                 "limits": self.limits(),
                 "state":  self.state(),
                 "msg": self.message(),
-                "precision": self.precision()}
+                "precision": self.precision(),
+                "readonly": self.read_only()}
 
         return data
 
@@ -869,22 +910,32 @@ class CryoHOMediator(HOMediatorBase):
         super(CryoHOMediator, self).__init__(ho, name)
 
         try:
-            ho.connect("valueChanged", self._state_change)
+            ho.connect("valueChanged", self._value_change)
+        except:
+            pass
+
+        try:
+            ho.connect("stateChanged", self._state_change)
         except:
             pass
 
         self._precision = 1
 
-    @Utils.RateLimited(0.1)
-    def _state_change(self, *args, **kwargs):
+    @Utils.RateLimited(1)
+    def _value_change(self, *args, **kwargs):
         self.value_change(*args, **kwargs)
+
+    @Utils.RateLimited(1)
+    def _state_change(self, *args, **kwargs):
+        self.state_change(*args, **kwargs)
+
 
     def set(self, value):
         pass
 
     def get(self):
         try:
-            value = self._ho.getValue()
+            value = self._ho.get_value()
         except Exception as ex:
             value = '0'
 
@@ -912,7 +963,7 @@ class CryoHOMediator(HOMediatorBase):
                 "limits": self.limits(),
                 "state":  self.state(),
                 "msg": self.message(),
-                "precision": self.precision()}
+                "precision": self.precision(),
+                "readonly": self.read_only()}
 
         return data
-                      

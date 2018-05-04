@@ -83,7 +83,7 @@ def init_signals():
     """
     dm = mxcube.diffractometer
 
-    for motor in dm.centring_motors_list:
+    for motor in Utils.get_centring_motors():
         @Utils.RateLimited(3)
         def pos_cb(pos, motor=motor, **kw):
             movable = Utils.get_movable_state_and_position(motor)
@@ -193,12 +193,13 @@ def stream_video(camera_hwobj):
     while True:
         try:
             camera_hwobj.new_frame.wait()
-            yield 'Content-type: image/jpg\n\n' + SAMPLE_IMAGE + "\n--!>"
+            yield '--!>\nContent-type: image/jpeg\n\n' + SAMPLE_IMAGE
         except Exception:
             pass
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/camera/subscribe", methods=['GET'])
+@mxcube.restrict
 def subscribe_to_camera():
     """
     Subscribe to the camera streaming
@@ -214,6 +215,7 @@ def subscribe_to_camera():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/camera/unsubscribe", methods=['PUT'])
+@mxcube.restrict
 def unsubscribe_to_camera():
     """
     SampleCentring: unsubscribe from the camera streaming
@@ -225,6 +227,7 @@ def unsubscribe_to_camera():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/camera/save", methods=['PUT'])
+@mxcube.restrict
 def snapshot():
     """
     Save snapshot of the sample view
@@ -241,6 +244,7 @@ def snapshot():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/camera", methods=['GET'])
+@mxcube.restrict
 def get_image_data():
     """
     Get size of the image of the diffractometer
@@ -259,6 +263,7 @@ def get_image_data():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/camera", methods=['POST'])
+@mxcube.restrict
 def set_image_size():
     """
     """
@@ -272,6 +277,7 @@ def set_image_size():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/<point_id>/moveto", methods=['PUT'])
+@mxcube.restrict
 def move_to_centred_position(point_id):
     """
     Move to the given centred position.
@@ -289,6 +295,7 @@ def move_to_centred_position(point_id):
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/shapes", methods=['GET'])
+@mxcube.restrict
 def get_shapes():
     """
     Retrieve all the stored centred positions.
@@ -308,6 +315,7 @@ def get_shapes():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/shapes/<sid>", methods=['GET'])
+@mxcube.restrict
 def get_shape_with_sid(sid):
     """
     Retrieve requested shape information.
@@ -345,6 +353,7 @@ def shape_mock_result(sid):
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/shapes", methods=['POST'])
+@mxcube.restrict
 def update_shapes():
     """
     Update shape information.
@@ -357,14 +366,14 @@ def update_shapes():
     params = request.get_json()
     shapes = params.get("shapes", [])
     updated_shapes = []
-    
+
     for s in shapes:
         shape_data = from_camel(s);
         pos = []
-    
+
         # Get the shape if already exists
         shape = mxcube.shapes.get_shape(shape_data.get("id", -1))
-        
+
         # If shape does not exist add it
         if not shape:
             refs, t = shape_data.pop("refs", []), shape_data.pop("t", "")
@@ -377,6 +386,8 @@ def update_shapes():
             shape_data["pixels_per_mm"] = mxcube.diffractometer.get_pixels_per_mm()
             shape_data["beam_pos"] = (beam_info_dict.get("position")[0],
                                       beam_info_dict.get("position")[1])
+            shape_data["beam_width"] = beam_info_dict.get("size_x", 0)
+            shape_data["beam_height"] = beam_info_dict.get("size_y", 0)
 
             # Shape does not have any refs, create a new Centered position
             if not refs:
@@ -413,6 +424,7 @@ def update_shapes():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/shapes/<sid>", methods=['DELETE'])
+@mxcube.restrict
 def delete_shape(sid):
     """
     Retrieve all the stored centred positions.
@@ -429,7 +441,38 @@ zoom_levels = ["Zoom 0", "Zoom 1", "Zoom 2", "Zoom 3", "Zoom 4", "Zoom 5",
                "Zoom 6", "Zoom 7", "Zoom 8", "Zoom 9", "Zoom 10"]
 
 
+@mxcube.route("/mxcube/api/v0.1/shapes/rotate_to", methods=['POST'])
+@mxcube.restrict
+def rotate_to():
+    """
+      Rotate Phi to the position where the given shape was defined
+
+        :parameter sid: The shape id
+        :response Content-type: application/json, the stored centred positions.
+        :statuscode: 200: no error
+        :statuscode: 409: error
+    """
+    resp = Response(status=409)
+    sid = request.get_json().get("sid", -1)
+
+    if sid:
+        shape = mxcube.shapes.get_shape(sid)
+        cp = shape.get_centred_position()
+        phi_value = round(float(cp.as_dict().get("phi", None)), 3)
+
+        if phi_value:
+            try:
+                mxcube.diffractometer.centringPhi.move(phi_value)
+            except:
+                pass
+            else:
+                resp.status_code = 200
+
+    return resp
+
+
 @mxcube.route("/mxcube/api/v0.1/sampleview/zoom", methods=['PUT'])
+@mxcube.restrict
 def move_zoom_motor():
     """
     Move the zoom motor.
@@ -459,6 +502,7 @@ def move_zoom_motor():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/backlighton", methods=['PUT'])
+@mxcube.restrict
 def back_light_on():
     """
     Activate the backlight of the diffractometer.
@@ -476,6 +520,7 @@ def back_light_on():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/backlightoff", methods=['PUT'])
+@mxcube.restrict
 def back_light_off():
     """
     Switch off the backlight of the diffractometer.
@@ -494,6 +539,7 @@ def back_light_off():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/frontlighton", methods=['PUT'])
+@mxcube.restrict
 def front_light_on():
     """
     Activate the frontlight of the diffractometer.
@@ -512,6 +558,7 @@ def front_light_on():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/frontlightoff", methods=['PUT'])
+@mxcube.restrict
 def front_light_off():
     """
     Switch off the frontlight of the diffractometer.
@@ -529,6 +576,7 @@ def front_light_off():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/<motid>/<newpos>", methods=['PUT'])
+@mxcube.restrict
 def move_motor(motid, newpos):
     """
         Move or Stop the given motor.
@@ -558,6 +606,7 @@ def move_motor(motid, newpos):
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/<elem_id>", methods=['GET'])
+@mxcube.restrict
 def get_status_of_id(elem_id):
     """
     Get position and status of the given element
@@ -584,6 +633,7 @@ def get_status_of_id(elem_id):
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/startauto", methods=['PUT'])
+@mxcube.restrict
 def centre_auto():
     """
     Start automatic (lucid) centring procedure.
@@ -596,6 +646,7 @@ def centre_auto():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/start3click", methods=['PUT'])
+@mxcube.restrict
 def centre_3_click():
     """
     Start 3 click centring procedure.
@@ -616,6 +667,7 @@ def centre_3_click():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/abort", methods=['PUT'])
+@mxcube.restrict
 def abort_centring():
     """
     Abort centring procedure.
@@ -629,6 +681,7 @@ def abort_centring():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/click", methods=['PUT'])
+@mxcube.restrict
 def click():
     """
     The 3-click method needs the input from the user, a running 3click centring procedure must be set before
@@ -648,7 +701,7 @@ def click():
                                            click_position['y'],
                                            click_position['x'],
                                            click_position['y'])
-        centring_click()   
+        centring_click()
     else:
         if not centring_clicks_left():
             centring_reset_click_count()
@@ -674,7 +727,7 @@ def wait_for_centring_finishes(*args, **kwargs):
 
     # If centering is valid add the point, otherwise remove it
     if centring_status['valid']:
-    	motor_positions = centring_status["motors"]
+        motor_positions = centring_status["motors"]
         motor_positions.pop('zoom', None)
         motor_positions.pop('beam_y', None)
         motor_positions.pop('beam_x', None)
@@ -686,6 +739,7 @@ def wait_for_centring_finishes(*args, **kwargs):
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/accept", methods=['PUT'])
+@mxcube.restrict
 def accept_centring():
     """
     Accept the centring position.
@@ -697,6 +751,7 @@ def accept_centring():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/reject", methods=['PUT'])
+@mxcube.restrict
 def reject_centring():
     """Reject the centring position."""
 
@@ -707,6 +762,7 @@ def reject_centring():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/movetobeam", methods=['PUT'])
+@mxcube.restrict
 def move_to_beam():
     """Go to the beam position from the given (x, y) position."""
     params = request.data
@@ -725,6 +781,7 @@ def move_to_beam():
 
 
 @mxcube.route("/mxcube/api/v0.1/sampleview/centring/centring_method", methods=['PUT'])
+@mxcube.restrict
 def set_centring_method():
     """
     Set MXCuBE to use automatic (lucid) centring procedure when
@@ -746,5 +803,5 @@ def set_centring_method():
 
     logging.getLogger('HWR.MX3').info(msg)
 
-        
+
     return Response(status=200)

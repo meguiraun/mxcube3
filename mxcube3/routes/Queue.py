@@ -18,6 +18,7 @@ qm = QueueManager.QueueManager('Mxcube3')
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/start", methods=['PUT'])
+@mxcube.restrict
 def queue_start():
     """
     Start execution of the queue.
@@ -48,6 +49,7 @@ def queue_start():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/stop", methods=['PUT'])
+@mxcube.restrict
 def queue_stop():
     """
     Stop execution of the queue.
@@ -56,7 +58,6 @@ def queue_stop():
               200: On success
               409: Queue could not be stopped
     """
-
     if mxcube.queue.queue_hwobj._root_task is not None:
         mxcube.queue.queue_hwobj.stop()
     else:
@@ -65,7 +66,7 @@ def queue_stop():
         try:
             qe.stop()
         except Exception as ex:
-            print 'exception...', ex
+            print str(ex)
 
         logging.getLogger('user_level_log').info('Queue execution was aborted, ' + str(qe.get_data_model()))
 
@@ -84,6 +85,7 @@ def queue_stop():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/abort", methods=['PUT'])
+@mxcube.restrict
 def queue_abort():
     """
     Abort execution of the queue.
@@ -97,6 +99,7 @@ def queue_abort():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/pause", methods=['PUT'])
+@mxcube.restrict
 def queue_pause():
     """
     Pause the execution of the queue
@@ -115,6 +118,7 @@ def queue_pause():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/unpause", methods=['PUT'])
+@mxcube.restrict
 def queue_unpause():
     """
     Unpause execution of the queue
@@ -132,6 +136,7 @@ def queue_unpause():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/clear", methods=['PUT', 'GET'])
+@mxcube.restrict
 def queue_clear():
     """
     Clear the queue.
@@ -141,6 +146,7 @@ def queue_clear():
               409: Queue could not be started
     """
     mxcube.diffractometer.savedCentredPos = []
+    limsutils.init_sample_list()
     mxcube.queue = qutils.new_queue()
     logging.getLogger('HWR').info('[QUEUE] Cleared  ' +
                                   str(mxcube.queue.get_model_root()._name))
@@ -148,6 +154,7 @@ def queue_clear():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue", methods=['GET'])
+@mxcube.restrict
 def queue_get():
     """
     Get the queue
@@ -159,12 +166,13 @@ def queue_get():
               409: On error, could not retrieve queue
     """
     logging.getLogger('HWR').info('[QUEUE] queue_get called')
-    resp = qutils.queue_to_json_response()
+    resp = qutils.queue_to_json_response(include_lims_data = True)
     resp.status_code = 200
     return resp
 
 
 @mxcube.route("/mxcube/api/v0.1/queue_state", methods=['GET'])
+@mxcube.restrict
 def queue_get_state():
     """
     Get the queue.
@@ -182,6 +190,7 @@ def queue_get_state():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/<sid>/<tindex>/execute", methods=['PUT'])
+@mxcube.restrict
 def execute_entry_with_id(sid, tindex):
     """
     Execute the entry at position (sampleID, task index) in queue
@@ -192,7 +201,7 @@ def execute_entry_with_id(sid, tindex):
                  409, queue entry could not be executed
     """
     try:
-        qutils.execute_entry_with_id(sid, tindex)                
+        qutils.execute_entry_with_id(sid, tindex)
     except:
         return Response(status=409)
     else:
@@ -201,6 +210,7 @@ def execute_entry_with_id(sid, tindex):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue", methods=['PUT'])
+@mxcube.restrict
 def set_queue():
     # Clear queue
     mxcube.diffractometer.savedCentredPos = []
@@ -215,6 +225,7 @@ def set_queue():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue", methods=['POST'])
+@mxcube.restrict
 def queue_add_item():
     tasks = request.get_json()
 
@@ -229,6 +240,7 @@ def queue_add_item():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/<sqid>/<tqid>", methods=['POST'])
+@mxcube.restrict
 def queue_update_item(sqid, tqid):
     data = request.get_json()
 
@@ -249,6 +261,7 @@ def queue_update_item(sqid, tqid):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/delete", methods=['POST'])
+@mxcube.restrict
 def queue_delete_item():
     item_pos_list = request.get_json()
     qutils.delete_entry_at(item_pos_list)
@@ -257,6 +270,7 @@ def queue_delete_item():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/set_enabled", methods=['POST'])
+@mxcube.restrict
 def queue_enable_item():
     params = request.get_json()
     qidList, enabled = params.get("qidList", None), params.get("enabled", False)
@@ -269,6 +283,7 @@ def queue_enable_item():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/<sid>/<ti1>/<ti2>/swap", methods=['POST'])
+@mxcube.restrict
 def queue_swap_task_item(sid, ti1, ti2):
     qutils.swap_task_entry(sid, int(ti1), int(ti2))
     logging.getLogger('HWR').info('[QUEUE] is:\n%s ' % qutils.queue_to_json())
@@ -283,6 +298,7 @@ def queue_move_task_item(sid, ti1, ti2):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/sample-order", methods=['POST'])
+@mxcube.restrict
 def queue_set_sample_order():
     sample_order = request.get_json().get("sampleOrder", [])
     qutils.set_sample_order(sample_order)
@@ -291,7 +307,21 @@ def queue_set_sample_order():
     return Response(status=200)
 
 
+@mxcube.route("/mxcube/api/v0.1/queue/get_lims_data_for_task", methods=['POST'])
+@mxcube.restrict
+def get_lims_data_for_task():
+    qid = request.get_json().get("qid", "")
+
+    if qid:
+        model, entry = qutils.get_entry(qid)
+        if entry:
+            signals.update_task_result(entry)
+
+    return Response(status=200)
+
+
 @mxcube.route("/mxcube/api/v0.1/queue/<sample_id>", methods=['PUT'])
+@mxcube.restrict
 def update_sample(sample_id):
     '''
     Update a sample info
@@ -324,6 +354,7 @@ def update_sample(sample_id):
         return Response(status=409)
 
 @mxcube.route("/mxcube/api/v0.1/queue/<node_id>/toggle", methods=['PUT'])
+@mxcube.restrict
 def toggle_node(node_id):
     '''
     Toggle a sample or a method checked status
@@ -429,6 +460,7 @@ def add_centring(id):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/dc", methods=['GET'])
+@mxcube.restrict
 def get_default_dc_params():
     """
     returns the default values for an acquisition (data collection).
@@ -462,7 +494,7 @@ def get_default_dc_params():
             'helical': False,
             'mesh': False,
             'prefixTemplate': '{PREFIX}_{POSITION}',
-            'subDirTemplate': '{ACRONYM}/{NAME}-{ACRONYM}',
+            'subDirTemplate': '{ACRONYM}/{ACRONYM}-{NAME}',
         },
         'limits': mxcube.beamline.get_acquisition_limit_values()
     })
@@ -472,6 +504,7 @@ def get_default_dc_params():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/char_acq", methods=['GET'])
+@mxcube.restrict
 def get_default_char_acq_params():
     """
     returns the default values for a characterisation acquisition.
@@ -482,43 +515,42 @@ def get_default_char_acq_params():
     ftype = ftype if ftype else '.?'
     n = int(mxcube.session["file_info"].getProperty("precision", 4))
 
-    resp = jsonify({
-        'acq_parameters': {
-            'first_image': acq_parameters.first_image,
-            'num_images': acq_parameters.num_images,
-            'osc_start': acq_parameters.osc_start,
-            'osc_range': acq_parameters.osc_range,
-            'kappa': acq_parameters.kappa,
-            'kappa_phi': acq_parameters.kappa_phi,
-            'overlap': acq_parameters.overlap,
-            'exp_time': acq_parameters.exp_time,
-            'num_passes': acq_parameters.num_passes,
-            'resolution': acq_parameters.resolution,
-            'energy': acq_parameters.energy,
-            'transmission': acq_parameters.transmission,
-            'shutterless': False,
-            'detector_mode': acq_parameters.detector_mode,
-            'inverse_beam': False,
-            'take_dark_current': True,
-            'skip_existing_images': False,
-            'take_snapshots': True,
-            'prefixTemplate': '{PREFIX}_{POSITION}',
-            'subDirTemplate': '{ACRONYM}/{NAME}-{ACRONYM}',
-            'strategy_complexity': 'SINGLE',
-            'account_rad_damage': True,
-            'opt_sad': False,
-            'min_crystal_vdim': 0.05,
-            'max_crystal_vdim': 0.05,
-            'min_crystal_vphi': 0,
-            'max_crystal_vphi': 90,  
-        },
-        })
+
+    char_defaults = mxcube.beamline.get_default_characterisation_parameters().\
+                    as_dict()
+
+    acq_defaults = {
+        'first_image': acq_parameters.first_image,
+        'num_images': acq_parameters.num_images,
+        'osc_start': acq_parameters.osc_start,
+        'osc_range': acq_parameters.osc_range,
+        'kappa': acq_parameters.kappa,
+        'kappa_phi': acq_parameters.kappa_phi,
+        'overlap': acq_parameters.overlap,
+        'exp_time': acq_parameters.exp_time,
+        'num_passes': acq_parameters.num_passes,
+        'resolution': acq_parameters.resolution,
+        'energy': acq_parameters.energy,
+        'transmission': acq_parameters.transmission,
+        'shutterless': False,
+        'detector_mode': acq_parameters.detector_mode,
+        'inverse_beam': False,
+        'take_dark_current': True,
+        'skip_existing_images': False,
+        'take_snapshots': True,
+        'prefixTemplate': '{PREFIX}_{POSITION}',
+        'subDirTemplate': '{ACRONYM}/{ACRONYM}-{NAME}', }
+
+    char_defaults.update(acq_defaults)
+
+    resp = jsonify({ 'acq_parameters':char_defaults })
 
     resp.status_code = 200
     return resp
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/char", methods=['GET'])
+@mxcube.restrict
 def get_default_char_params():
     """
     returns the default values for a characterisation.
@@ -527,7 +559,9 @@ def get_default_char_params():
     resp.status_code = 200
     return resp
 
+
 @mxcube.route("/mxcube/api/v0.1/queue/mesh", methods=['GET'])
+@mxcube.restrict
 def get_default_mesh_params():
     """
     returns the default values for a mesh.
@@ -556,14 +590,43 @@ def get_default_mesh_params():
             'cell_counting': mxcube.beamline['default_mesh_values'].getProperty('cell_counting', 'zig-zag'),
             'cell_spacing': mxcube.beamline['default_mesh_values'].getProperty('cell_spacing', 'None'),
             'prefixTemplate': '{PREFIX}_{POSITION}',
-            'subDirTemplate': '{ACRONYM}/{NAME}-{ACRONYM}',
+            'subDirTemplate': '{ACRONYM}/{ACRONYM}-{NAME}',
         },
-        })    
+        })
     resp.status_code = 200
     return resp
 
 
+@mxcube.route("/mxcube/api/v0.1/queue/xrf", methods=['GET'])
+@mxcube.restrict
+def get_default_xrf_parameters():
+    """
+    returns the default values for a xrf scan
+    """
+    int_time = 5
+
+    try:
+        int_time =  mxcube.beamline.getObjectByRole('xrf_spectrum').\
+                    getProperty('default_integration_time', '5').strip()
+        try:
+            int(int_time)
+        except ValueError:
+            pass
+
+    except Exception:
+        msg = "Failed to get object with role: %s" % name
+        msg += "cannot get default values for XRF"
+        logging.getLogger("HWR").exception(msg)
+
+    resp = jsonify({"countTime": int_time})
+
+    resp.status_code = 200
+    return resp
+
+
+
 @mxcube.route("/mxcube/api/v0.1/queue/<id>", methods=['GET'])
+@mxcube.restrict
 def get_sample(id):
     """
     Get the information of the given sample.
@@ -586,6 +649,7 @@ def get_sample(id):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/<sample_id>/<int:method_id>", methods=['GET'])
+@mxcube.restrict
 def get_method(sample_id, method_id):
     """
     Get the information of the given task, beloging to the given sample
@@ -619,6 +683,7 @@ def get_method(sample_id, method_id):
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/json", methods=["GET"])
+@mxcube.restrict
 def serialize():
     try:
         return qutils.queue_to_json_response()
@@ -628,6 +693,7 @@ def serialize():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/automount", methods=["POST"])
+@mxcube.restrict
 def set_autmount():
     automount = request.get_json()
     qutils.set_auto_mount_sample(automount)
@@ -638,6 +704,7 @@ def set_autmount():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/num_snapshots", methods=["PUT"])
+@mxcube.restrict
 def set_num_snapshots():
     data = request.get_json()
     mxcube.NUM_SNAPSHOTS = data.get("numSnapshots", 4)
@@ -648,6 +715,7 @@ def set_num_snapshots():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/group_folder", methods=["POST"])
+@mxcube.restrict
 def set_group_folder():
     data = request.get_json()
 
@@ -670,6 +738,7 @@ def set_group_folder():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/group_folder", methods=["GET"])
+@mxcube.restrict
 def get_group_folder():
     resp = jsonify({'path': mxcube.session.get_group_name()});
     resp.status_code = 200
@@ -678,6 +747,7 @@ def get_group_folder():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/auto_add_diffplan", methods=["POST"])
+@mxcube.restrict
 def set_autoadd():
     autoadd = request.get_json()
     qutils.set_auto_add_diffplan(autoadd)
@@ -687,6 +757,7 @@ def set_autoadd():
 
 
 @mxcube.route("/mxcube/api/v0.1/queue/mock/diff_plan/<sid>", methods=["GET"])
+@mxcube.restrict
 def create_diff_plan(sid):
     '''Juts for creating a diff plan as if it were created by edna and so on.
     '''
@@ -719,7 +790,7 @@ def create_diff_plan(sid):
             'helical': False,
             'mesh': False,
             'prefixTemplate': '{PREFIX}_{POSITION}',
-            'subDirTemplate': '{ACRONYM}/{NAME}-{ACRONYM}',
+            'subDirTemplate': '{ACRONYM}/{ACRONYM}-{NAME}',
             'prefix': 'foo',
             'shape': 'P1'#-1
         },
@@ -727,7 +798,7 @@ def create_diff_plan(sid):
     }
 
     sample_model, sample_entry = qutils.get_entry(sid)
-    dc_model, dc_entry = qutils._create_dc(task)    
+    dc_model, dc_entry = qutils._create_dc(task)
     qutils.set_dc_params(dc_model, dc_entry, task, sample_model)
     pt = dc_model.acquisitions[0].path_template
 

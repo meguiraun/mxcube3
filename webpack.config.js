@@ -1,6 +1,16 @@
 var webpack = require("webpack");
 var path = require('path');
 var backend_server = require('./backend_server.js');
+var GitRevisionPlugin = require('git-revision-webpack-plugin');
+var gitRevisionPlugin = new GitRevisionPlugin();
+
+var VIDEO_STREAM_URL = '"ws://localhost:4042/"'
+
+try {
+  VIDEO_STREAM_URL = JSON.stringify(require('./config.video_url.dev.js'));
+} catch (e) {
+  console.log("WARNING: VIDEO_STREAM_URL not set");
+}
 
 var config = {
   entry: {
@@ -100,18 +110,36 @@ var config = {
             }
           }
         ]
+      },
+      {
+        test: /\.(ogv)$/,
+        use: [
+               {
+                 loader: 'file-loader',
+                 options: {}
+	       }
+             ]
       }
     ]
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env': {
+        'NODE_ENV': '"dev"'
+      },
+      'VERSION': { 'COMMITHASH': JSON.stringify(gitRevisionPlugin.commithash()),
+                   'BRANCH': JSON.stringify(gitRevisionPlugin.branch()) },
+      'VIDEO_STREAM_URL': VIDEO_STREAM_URL,
+      'VIDEO_STREAM_ON_LOCAL_HOST': true
+    })
+  ],
   externals: {
-    'guiConfig': JSON.stringify(require('./config.gui.prod.js'))
+    'guiConfig': JSON.stringify(require('./config.gui.prod.js')),
   },
   resolve: {
     modules: [ path.join(__dirname, "mxcube3/ui"), "node_modules" ],
     extensions: ['.js', '.jsx']
-  },
+  }
 }
 
 module.exports = config;
-
-

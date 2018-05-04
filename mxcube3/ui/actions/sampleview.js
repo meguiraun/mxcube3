@@ -140,7 +140,8 @@ export function setVideoSize(width, height) {
           width: json.imageWidth,
           height: json.imageHeight,
           pixelsPerMm: json.pixelsPerMm,
-          beamPosition: json.position
+          beamPosition: json.position,
+          sourceScale: json.scale
         });
       });
     }
@@ -192,6 +193,26 @@ export function addGridAction(gridData) {
 export function centringClicksLeft(clicksLeft) {
   return { type: 'CENTRING_CLICKS_LEFT', clicksLeft };
 }
+
+
+export function sendRotateToShape(sid) {
+  return function (dispatch) {
+    fetch('/mxcube/api/v0.1/shapes/rotate_to', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-type': 'application/json'
+      },
+      body: JSON.stringify({ sid })
+    }).then((response) => {
+      if (response.status >= 400) {
+        dispatch(showErrorPanel(true, 'Server refused to rotate grid.'));
+      }
+    });
+  };
+}
+
 
 export function sendStartClickCentring() {
   return function (dispatch, getState) {
@@ -340,7 +361,7 @@ export function sendAddShape(shapeData = {}, successCb = null) {
 
 export function sendUpdateShapes(shapes) {
   return function (dispatch) {
-    fetch('/mxcube/api/v0.1/sampleview/shapes', {
+    return fetch('/mxcube/api/v0.1/sampleview/shapes', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -361,15 +382,16 @@ export function sendUpdateShapes(shapes) {
 
 export function sendDeleteShape(id) {
   return function (dispatch) {
-    fetch(`/mxcube/api/v0.1/sampleview/shapes/${id}`, {
+    return fetch(`/mxcube/api/v0.1/sampleview/shapes/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
         'Content-type': 'application/json'
       }
     }).then((response) => {
       if (response.status >= 400) {
-        throw new Error('Server refused to delete line');
+        throw new Error('Server refused to delete shape');
       }
     }).then(() => {
       dispatch(deleteShape(id));

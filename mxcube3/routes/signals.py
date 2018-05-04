@@ -10,9 +10,11 @@ from mxcube3.routes import Utils
 from mxcube3.routes import qutils
 from mxcube3.routes import scutils
 from mxcube3.routes import limsutils
-from mxcube3.remote_access import safe_emit
+from mxcube3.routes.loginutils import safe_emit
+
 from sample_changer.GenericSampleChanger import SampleChangerState
 from sample_changer.Container import Pin
+from sample_changer.GenericSampleChanger import Sample
 from mxcube3.ho_mediators.beamline_setup import BeamlineSetupMediator
 
 from qutils import READY, RUNNING, FAILED, COLLECTED, WARNING, UNCOLLECTED, queue_to_dict
@@ -142,9 +144,16 @@ def sc_state_changed(*args):
     socketio.emit('sc_state', state_str, namespace='/hwr')
 
 def loaded_sample_changed(sample):
-    if not isinstance(sample, Pin):
-        return
+    # If sample is a "No sample loaded value" None or ''
+    if sample in [None, '']:
+        msg = {'signal': 'loadReady', 'location': ''}
+        socketio.emit('sc', msg, namespace='/hwr')
+        socketio.emit("loaded_sample_changed", {'address': '', 'barcode': ''}, namespace="/hwr")
     
+    # If sample is not Pin, Sample pin just return
+    if not (isinstance(sample, Pin) or isinstance(sample, Sample)):
+        return
+
     if sample is not None:
         address = sample.getAddress()
         barcode = sample.getID()
@@ -185,8 +194,12 @@ def sc_maintenance_update(state_list, cmd_state, message):
 def centring_started(method, *args):
     msg = {'method': method}
 
-    if method != CENTRING_METHOD.LOOP:
-        socketio.emit('sample_centring', msg, namespace='/hwr')
+    if method in ['Computer automatic']:
+        msg = {'method': CENTRING_METHOD.LOOP}
+    elif method in ['Manual 3-click' ]:
+        msg = {'method': CENTRING_METHOD.MANUAL}
+
+    socketio.emit('sample_centring', msg, namespace='/hwr')
 
 
 def get_task_state(entry):
@@ -210,13 +223,37 @@ def get_task_state(entry):
     msg = {'Signal': '',
            'Message': '',
            'taskIndex': node_index['idx'],
-           'queueID': last_queue_node()['queue_id'],
+           'queueID': node_id,
            'sample': node_index['sample'],
            'limsResultData': limsres,
            'state': state,
            'progress': 1}
 
     return msg
+
+
+def update_task_result(entry):
+    node_index = qutils.node_index(entry.get_data_model())
+    node_id = entry.get_data_model()._node_id
+    lims_id = mxcube.NODE_ID_TO_LIMS_ID.get(node_id, 'null')
+
+    try:
+        limsres = mxcube.rest_lims.get_dc(lims_id)
+    except:
+        limsres = {}
+
+    try:
+        limsres["limsTaskLink"] = limsutils.get_dc_link(lims_id)
+    except Exception:
+        limsres["limsTaskLink"] = "#"
+        msg = "Could not get lims link for collection with id: %s" % lims_id
+        logging.getLogger("HWR").error(msg)
+
+    msg = { 'sample': node_index['sample'],
+            'taskIndex': node_index['idx'],
+            'limsResultData': limsres }
+
+    socketio.emit('update_task_lims_data', msg, namespace='/hwr')
 
 
 def queue_execution_entry_finished(entry):
@@ -486,12 +523,14 @@ def xrf_task_progress(taskId, progress):
     except Exception:
         logging.getLogger("HWR").error('error sending message: ' + str(msg))
 
-def send_shapes(update_positions = False):
+def send_shapes(update_positions = False, movable={}):
     shape_dict = {}
 
     for shape in mxcube.shapes.get_shapes():
         if update_positions:
-            shape.update_position(mxcube.diffractometer.motor_positions_to_screen)
+            if not (shape.t == "G" and movable.get("name", None) == "phi"):
+                shape.update_position(mxcube.diffractometer.\
+                    motor_positions_to_screen)
 
         s = to_camel(shape.as_dict())
         shape_dict.update({shape.id: s})
@@ -510,7 +549,7 @@ def motor_state_callback(movable, sender=None, **kw):
         motor_position_callback(movable)
 
         # Re calculate positions for shapes after motor finished to move
-        send_shapes(update_positions = True)
+        send_shapes(update_positions = True, movable=movable)
 
         # Update the pixels per mm if it was the zoom motor that moved
         if movable["name"] == "zoom":

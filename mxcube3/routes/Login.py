@@ -1,15 +1,19 @@
 import logging
 import os
+import Utils
 
-from flask import session, request, jsonify, make_response
+from flask import session, request, jsonify, make_response, Response
 from mxcube3 import app as mxcube
+from mxcube3 import state_storage
 from mxcube3.routes import qutils
 from mxcube3.routes import limsutils
-from mxcube3 import remote_access, state_storage
 from mxcube3 import socketio
 from scandir import scandir
 
-LOGGED_IN_USER = None
+from loginutils import (create_user, add_user, remove_user, get_user_by_sid,
+                        logged_in_users, deny_access, users, set_operator,
+                        get_operator, is_operator, get_observer_name,
+                        is_local_host, remote_addr, get_observers)
 
 
 def scantree(path, include):
@@ -53,26 +57,53 @@ def login():
        200: On success
        409: Error, could not log in
     """
-    global LOGGED_IN_USER
+    params = request.get_json()
+    loginID = params.get("proposal", "")
+    password = params.get("password", "")
 
-    content = request.get_json()
-    loginID = content['proposal']
-    password = content['password']
+    try:
+        login_res = limsutils.lims_login(loginID, password)
+        inhouse = limsutils.lims_is_inhouse(login_res)
 
-    if LOGGED_IN_USER is not None and LOGGED_IN_USER != loginID:
-        data = {"code": "", "msg": "Another user is already logged in"}
-        resp = jsonify(data)
-        resp.code = 409
-        return resp
+        info = {"valid": limsutils.lims_valid_login(login_res),
+                "local": is_local_host(),
+                "existing_session": limsutils.lims_existing_session(login_res),
+                "inhouse": inhouse}
 
-    login_res = limsutils.lims_login(loginID, password)
+        _users = logged_in_users(exclude_inhouse=True)
+        
+        # Only allow in-house log-in from local host
+        if inhouse and not (inhouse and is_local_host()):
+            return deny_access("In-house only allowed from localhost")
 
-    if login_res['status']['code'] == 'ok':
+        # Only allow other users to log-in if they are from the same proposal
+        if (not inhouse) and _users and (loginID not in _users):
+            return deny_access("Another user is already logged in")
+
+        # Only allow local login when remote is disabled
+        if not mxcube.ALLOW_REMOTE and not is_local_host():
+            return deny_access("Remote access disabled")
+
+        # Only allow remote logins with existing sessions
+        if limsutils.lims_valid_login(login_res) and is_local_host():
+            msg = "[LOGIN] Valid login from local host (%s)" % str(info)
+            logging.getLogger("HWR").info(msg)
+        elif limsutils.lims_valid_login(login_res) and \
+             limsutils.lims_existing_session(login_res):
+            msg = "[LOGIN] Valid remote login from %s with existing session (%s)"
+            msg += msg % (remote_addr(), str(info))
+            logging.getLogger("HWR").info(msg)
+        else:
+            logging.getLogger("HWR").info("Invalid login %s" % info)
+            return deny_access(str(info))
+    except:
+        return deny_access("")
+    else:
+        add_user(create_user(loginID, remote_addr(), session.sid))
+
         session['loginInfo'] = {'loginID': loginID,
                                 'password': password,
                                 'loginRes': login_res}
-
-        LOGGED_IN_USER = loginID
 
         # Create a new queue just in case any previous queue was not cleared
         # properly
@@ -84,23 +115,22 @@ def login():
         # logging.getLogger('HWR').info('Loaded queue')
         logging.getLogger('HWR').info('[QUEUE] %s ' % qutils.queue_to_json())
 
-        if not remote_access.MASTER:
-            remote_access.set_master(session.sid)
+        if not get_operator():
+            set_operator(session.sid)
 
-    return jsonify(login_res['status'])
+        return jsonify(login_res['status'])
 
 
 @mxcube.route("/mxcube/api/v0.1/signout")
+@mxcube.restrict
 def signout():
     """
     Signout from Mxcube3 and reset the session
     """
-    global LOGGED_IN_USER
-
     qutils.save_queue(session)
     mxcube.queue = qutils.new_queue()
     mxcube.shapes.clear_all()
-    qutils.reset_queue_settings()
+    qutils.init_queue_settings()
     if hasattr(mxcube.session, 'clear_session'):
         mxcube.session.clear_session()
 
@@ -108,11 +138,7 @@ def signout():
         if mxcube.CURRENTLY_MOUNTED_SAMPLE.get('location', '') == 'Manual':
             mxcube.CURRENTLY_MOUNTED_SAMPLE = ''
 
-    LOGGED_IN_USER = None
-    if remote_access.is_master(session.sid):
-        state_storage.flush()
-        remote_access.flush()
-
+    user = remove_user(session.sid)
     session.clear()
 
     return make_response("", 200)
@@ -144,6 +170,7 @@ def forcesignout():
     return make_response("", 200)
 
 @mxcube.route("/mxcube/api/v0.1/login_info", methods=["GET"])
+@mxcube.restrict
 def loginInfo():
     """
     Retrieve session/login info
@@ -164,20 +191,14 @@ def loginInfo():
        200: On success
        409: Error, could not log in
     """
-    global LOGGED_IN_USER
     login_info = session.get("loginInfo")
     proposal_info = session.get("proposal")
 
     if login_info is not None:
         login_id = login_info["loginID"]
 
-        if LOGGED_IN_USER is not None and LOGGED_IN_USER != login_id:
-            return make_response("", 409)
-
-        LOGGED_IN_USER = login_id
-
-        if not remote_access.MASTER:
-            remote_access.set_master(session.sid)
+        if not get_operator():
+            set_opeator(session.sid)
 
         session['loginInfo'] = login_info
 
@@ -189,15 +210,14 @@ def loginInfo():
            "loginType": mxcube.db_connection.loginType.title(),
            "loginRes": login_info,
            "queue": qutils.queue_to_dict(),
-           "master": remote_access.is_master(session.sid),
-           "observerName": remote_access.observer_name()
+           "master": is_operator(session.sid),
+           "observerName": get_observer_name()
            }
 
+    # Autoselect proposal
     if res["loginType"].lower() != 'user' and login_info:
-        # autoselect proposal
-
-        limsutils.select_proposal(LOGGED_IN_USER)
-        res["selectedProposal"] = LOGGED_IN_USER
+        limsutils.select_proposal(get_user_by_sid(session.sid)["loginID"])
+        res["selectedProposal"] = get_user_by_sid(session.sid)["loginID"]
         logging.getLogger('user_log').info('[LIMS] Proposal autoselected.')
 
     # elif res["loginType"].lower() == 'user' and login_info and not LOGGED_IN_USER:
@@ -220,78 +240,13 @@ def loginInfo():
     return jsonify(res)
 
 
-@mxcube.route("/mxcube/api/v0.1/login/request_control", methods=["POST"])
-def request_control():
-    """
-    """
-    data = request.get_json()
+@mxcube.route("/mxcube/api/v0.1/send_feedback", methods=["POST"])
+@mxcube.restrict
+def send_feedback():
 
-    remote_addr = remote_access.remote_addr()
+    sender_data = request.get_json()
+    sender_data["LOGGED_IN_USER"] = get_user_by_sid(session.sid)["loginID"]
 
-    # Is someone already asking for control
-    for observer in remote_access.OBSERVERS.values():
-        if observer["requestsControl"] and observer["host"] != remote_addr:
-            msg = "Another user is already asking for control"
-            return make_response(msg, 409)
-
-    remote_access.OBSERVERS[remote_addr]["name"] = data["name"]
-    remote_access.OBSERVERS[remote_addr]["requestsControl"] = data["control"]
-    remote_access.OBSERVERS[remote_addr]["message"] = data["message"]
-
-    data = remote_access.OBSERVERS.values()
-
-    socketio.emit("observersChanged", data, namespace='/hwr')
-
-    return make_response("", 200)
-
-
-@mxcube.route("/mxcube/api/v0.1/login/observers", methods=["GET"])
-def observers():
-    """
-    """
-    data = {'observers': remote_access.OBSERVERS.values(),
-            'sid': session.sid,
-            'master': remote_access.is_master(session.sid),
-            'observerName': remote_access.observer_name()}
-
-    return jsonify(data=data)
-
-
-def observer_requesting_control():
-    observer = None
-
-    for o in remote_access.OBSERVERS.values():
-        if o["requestsControl"]:
-            observer = o
-
-    return observer
-
-@mxcube.route("/mxcube/api/v0.1/login/request_control_response", methods=["POST"])
-def request_control_response():
-    """
-    """
-    data = request.get_json()
-    observer = observer_requesting_control()
-    observers = remote_access.OBSERVERS.values()
-
-    # Request was denied
-    if not data['giveControl']:
-        data["sid"] = session.sid
-
-        # Reset request of observer, since it was denied
-        observer["requestsControl"] = False
-
-        socketio.emit("observersChanged", observers, namespace='/hwr')
-        socketio.emit("setMaster", data, namespace='/hwr')
-    else:
-        # Find the user asking for control and remove her from observers
-        # and make her master
-        observer = remote_access.OBSERVERS.pop(observer["host"])
-        remote_access.set_master(observer["sid"])
-
-        data["sid"] = observer["sid"]
-
-        socketio.emit("observersChanged", observers, namespace='/hwr')
-        socketio.emit("setMaster", data, namespace='/hwr')
+    Utils.send_feedback(sender_data)
 
     return make_response("", 200)

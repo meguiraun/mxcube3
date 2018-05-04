@@ -36,6 +36,19 @@ export function selectProposal(prop) {
   };
 }
 
+export function sendMail(sender, content) {
+  fetch('mxcube/api/v0.1/send_feedback', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'Content-type': 'application/json'
+    },
+    body: JSON.stringify({ sender, content })
+  });
+}
+
+
 export function postProposal(number) {
   return fetch('mxcube/api/v0.1/lims/proposal', {
     method: 'POST',
@@ -110,13 +123,11 @@ export function signIn(proposal, password) {
         dispatch(getLoginInfo()).then(response => response).then((resp) => {
           if (resp.loginType === 'User') {
             dispatch(showProposalsForm());
-            // browserHistory.push('/');
           } else {
             dispatch(selectProposal(proposal));
             browserHistory.push('/');
           }
-        }
-        );
+        });
       } else {
         // const msg = res.msg;
         dispatch(showErrorPanel(true));

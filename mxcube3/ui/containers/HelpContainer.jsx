@@ -8,6 +8,8 @@ import characterisation from '../help_videos/mx3-characterisation.ogv';
 import interleaved from '../help_videos/mx3-interleaved.ogv';
 import mesh from '../help_videos/mx3-mesh.ogv';
 
+import config from 'guiConfig';
+
 export class HelpContainer extends React.Component {
   constructor(props) {
     super(props);
@@ -22,19 +24,52 @@ export class HelpContainer extends React.Component {
     this.content.value = '';
   }
 
+  localContactPanel() {
+    const loginRes = this.props.login.loginRes;
+    let panel = null;
+
+    if (loginRes) {
+      const familyName = loginRes.local_contact.familyName || '';
+      const givenName = loginRes.local_contact.givenName || '';
+      const email = loginRes.local_contact.emailAddress || '';
+      const tel = loginRes.local_contact.phoneNumber || '';
+
+      panel = (
+        <Panel header={
+          <div>
+            <span>Local Contact</span>
+            <span className="glyphicon glyphicon-user pull-right" ></span>
+          </div>}
+        >
+         <span>
+           Name: `${givenName} ${familyName}`<br />
+           Email: {email}<br />
+           Tel: {tel} <br />
+         </span>
+       </Panel>);
+    }
+    return panel;
+  }
+
   render() {
+    let links = [];
+
+    if (config.helpLinks) {
+      links = config.helpLinks.map((link) =>
+          <div><a target="_blank" href={link.url}>{link.name}</a></div>);
+    }
+
     return (
-      <div className="col-xs-12" style={{ marginTop: '2em' }}>
+      <div className="col-xs-12" style={{ marginTop: '2em', zIndex: 9999 }}>
         <div className="col-xs-4">
-          <Panel header="Local Contact">
-            <span>
-              Name: <br />
-              Email: <br />
-              Tel: <br />
-            </span>
-          </Panel>
-          <Panel header="Contact us">
-            <span>
+          {this.localContactPanel()}
+          <Panel header={
+            <div>
+              <span>Feedback</span>
+              <span className="glyphicon glyphicon-envelope pull-right" ></span>
+            </div>}
+          >
+           <span>
               <Form>
                 <FormGroup>
                   <ControlLabel>Your email, Name or Proposal</ControlLabel>
@@ -96,6 +131,18 @@ export class HelpContainer extends React.Component {
               </span>
             </div>
           </Panel>
+          { config.helpLinks ?
+            (<Panel header={
+              <div>
+                <span>Help Links</span>
+                <span className="glyphicon glyphicon-info-sign pull-right" ></span>
+              </div>}
+            >
+              <span>
+              {links}
+              </span>
+            </Panel>) : null
+           }
         </div>
       </div>
     );
@@ -105,7 +152,7 @@ export class HelpContainer extends React.Component {
 
 function mapStateToProps(state) {
   return {
-    remoteAccess: state.login
+    login: state.login
   };
 }
 

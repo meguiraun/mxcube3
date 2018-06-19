@@ -9,6 +9,53 @@ from mxcube3 import app as mxcube
 from queue_entry import QueueSkippEntryException, CENTRING_METHOD
 
 
+def get_sample_list():
+    import limsutils
+
+    samples_list = mxcube.sample_changer.getSampleList()
+    samples = {}
+    samplesByCoords = {}
+    order = []
+
+    for s in samples_list:
+        if not s.isPresent():
+            continue
+        if s.isLoaded():
+            state = qutils.SAMPLE_MOUNTED
+        elif s.hasBeenLoaded():
+            state = qutils.COLLECTED
+        else:
+            state = qutils.UNCOLLECTED
+        sample_dm = s.getID() or ""
+        coords = s.getCoords()
+        sample_data = {"sampleID": s.getAddress(),
+                       "location": s.getAddress(),
+                       "sampleName": "Sample-%s" % s.getAddress(),
+                       "code": sample_dm,
+                       "loadable": True,
+                       "state": state,
+                       "tasks": [],
+                       "type": "Sample"}
+        order.append(coords)
+        samplesByCoords[coords] = sample_data['sampleID']
+
+        sample_data["defaultPrefix"] = limsutils.get_default_prefix(sample_data, False)
+        sample_data["defaultSubDir"] = limsutils.get_default_subdir(sample_data)
+
+        samples[s.getAddress()] = sample_data
+        sc_contents_add(sample_data)
+
+        if sample_data["state"] == qutils.SAMPLE_MOUNTED:
+            set_current_sample(sample_data)
+
+    # sort by location, using coords tuple
+    order.sort()
+    sample_list = { 'sampleList': samples,
+                    'sampleOrder': [samplesByCoords[coords] for coords in order] }
+
+    limsutils.sample_list_set(sample_list)
+
+
 def sc_contents_init():
     mxcube.SC_CONTENTS = {"FROM_CODE": {}, "FROM_LOCATION": {}}
 
@@ -49,7 +96,7 @@ def get_current_sample():
     logging.getLogger('HWR').info('[SC] Getting currenly mounted sample %s' %mxcube.CURRENTLY_MOUNTED_SAMPLE)
     try:
         if mxcube.CURRENTLY_MOUNTED_SAMPLE and \
-            mxcube.CURRENTLY_MOUNTED_SAMPLE["sampleID"] in  current_queue:
+            mxcube.CURRENTLY_MOUNTED_SAMPLE["sampleID"] in current_queue:
             return mxcube.CURRENTLY_MOUNTED_SAMPLE
     except:
         return {"sampleID": None}
@@ -125,14 +172,18 @@ def mount_sample(beamline_setup_hwobj,
                           " user to center sample"
                     log.warning(msg)
                     dm.startCentringMethod(dm.MANUAL3CLICK_MODE)
-                elif centring_method == CENTRING_METHOD.LOOP:
+                elif centring_method in [CENTRING_METHOD.LOOP,
+                                         CENTRING_METHOD.FULLY_AUTOMATIC]:
                     dm.startCentringMethod(dm.C3D_MODE)
-                    msg = "Centring in progress. Please save" +\
-                          " the suggested centring or re-center"
+
+                    if mxcube.AUTO_MOUNT_SAMPLE:
+                        dm.acceptCentring()
+                        msg = "Centring saved automatically"
+                    else:
+                        msg = "Centring in progress. Please save" +\
+                              " the suggested centring or re-center"
+
                     log.warning(msg)
-                elif centring_method == CENTRING_METHOD.FULLY_AUTOMATIC:
-                    log.info("Centring sample, please wait.")
-                    dm.startCentringMethod(dm.C3D_MODE)
                 else:
                     dm.start_centring_method(dm.MANUAL3CLICK_MODE)
 

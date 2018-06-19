@@ -1,4 +1,5 @@
 import React from 'react';
+import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { Grid } from 'react-bootstrap';
 import MXNavbarContainer from '../containers/MXNavbarContainer';
@@ -9,19 +10,25 @@ import ResumeQueueDialog from '../containers/ResumeQueueDialog';
 import ConnectionLostDialog from '../containers/ConnectionLostDialog';
 import ObserverDialog from './RemoteAccess/ObserverDialog';
 import PassControlDialog from './RemoteAccess/PassControlDialog';
+import BeamlineCamera from './BeamlineCamera/BeamlineCamera.jsx';
 import ConfirmCollectDialog from '../containers/ConfirmCollectDialog';
 import WorkflowParametersDialog from '../containers/WorkflowParametersDialog';
 import diagonalNoise from '../img/diagonal-noise.png';
-import { sendChatMessage, getAllChatMessages } from '../actions/remoteAccess.js';
+import { sendChatMessage, getAllChatMessages,
+         resetChatMessageCount } from '../actions/remoteAccess.js';
 import { Widget, addResponseMessage, addUserMessage } from 'react-chat-widget';
+import 'react-chat-widget/lib/styles.css';
 import './rachat.css';
 import 'react-chat-widget/lib/styles.css';
+import config from 'guiConfig';
+
 
 class Main extends React.Component {
   constructor(props) {
     super(props);
     this.handleClick = this.handleClick.bind(this);
     this.handleNewUserMessage = this.handleNewUserMessage.bind(this);
+    this.onChatContainerClick = this.onChatContainerClick.bind(this);
   }
 
   componentDidMount() {
@@ -36,6 +43,10 @@ class Main extends React.Component {
     });
   }
 
+  onChatContainerClick() {
+    this.props.resetChatMessageCount();
+  }
+
   handleNewUserMessage(message) {
     sendChatMessage(message, this.props.remoteAccess.sid);
   }
@@ -48,7 +59,8 @@ class Main extends React.Component {
 
   render() {
     const showReadOnlyDiv = !this.props.remoteAccess.master &&
-            this.props.location.pathname !== '/remoteaccess';
+            this.props.location.pathname !== '/remoteaccess' &&
+            this.props.location.pathname !== '/help';
 
     return (
       <div>
@@ -57,7 +69,7 @@ class Main extends React.Component {
             onMouseDown={this.handleClick}
             style={{
               backgroundImage: `url(${diagonalNoise})`,
-              zIndex: 10000,
+              zIndex: 9998,
               position: 'fixed',
               padding: 0,
               margin: 0,
@@ -81,14 +93,21 @@ class Main extends React.Component {
         <Grid fluid>
             {this.props.children}
         </Grid>
-        { this.props.remoteAccess.observers.length > 0 ?
-          (<Widget
-            title="Chat"
-            subtitle=""
-            badge={2}
-            handleNewUserMessage={this.handleNewUserMessage}
-          />) : null
-        }
+        <span onClick={this.onChatContainerClick}>
+          { this.props.remoteAccess.observers.length > 0 ?
+             (<Widget
+               title="Chat"
+               subtitle=""
+               badge={this.props.remoteAccess.chatMessageCount}
+               handleNewUserMessage={this.handleNewUserMessage}
+             />) : null
+          }
+        </span>
+        <span>
+          { config.beamlineCameras ?
+          <BeamlineCamera cameras={config.beamlineCameras} /> : null
+          }
+        </span>
       </div>
     );
   }
@@ -100,6 +119,14 @@ function mapStateToProps(state) {
   };
 }
 
+function mapDispatchToProps(dispatch) {
+  return {
+    resetChatMessageCount: bindActionCreators(resetChatMessageCount, dispatch)
+  };
+}
+
+
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  mapDispatchToProps
 )(Main);

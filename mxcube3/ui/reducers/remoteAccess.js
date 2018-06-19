@@ -7,7 +7,8 @@ const initialState = {
   observers: [],
   allowRemote: false,
   timeoutGivesControl: false,
-  showObserverDialog: false
+  showObserverDialog: false,
+  chatMessageCount: 0
 };
 
 export default (state = initialState, action) => {
@@ -19,7 +20,7 @@ export default (state = initialState, action) => {
             master: action.master,
             sid: action.sid,
             observerName: action.name,
-            requestingControl: false
+            requestingControl: false,
           });
       }
     case 'SET_OBSERVERS':
@@ -37,6 +38,14 @@ export default (state = initialState, action) => {
     case 'SET_TIMEOUT_GIVES_CONTROL':
       {
         return Object.assign({}, state, { timeoutGivesControl: action.timeoutGivesControl });
+      }
+    case 'RESET_CHAT_MESSAGE_COUNT':
+      {
+        return Object.assign({}, state, { chatMessageCount: 0 });
+      }
+    case 'INC_CHAT_MESSAGE_COUNT':
+      {
+        return Object.assign({}, state, { chatMessageCount: state.chatMessageCount + 1 });
       }
     case 'REQUEST_CONTROL':
       {

@@ -24,7 +24,8 @@ import { setStatus,
          sendStopQueue,
          setCurrentSample,
          addDiffractionPlanAction,
-         setSampleAttribute } from './actions/queue';
+         setSampleAttribute,
+         setRootPath } from './actions/queue';
 import { collapseItem,
          showResumeQueueDialog } from './actions/queueGUI';
 import { setLoading,
@@ -33,7 +34,8 @@ import { setLoading,
 
 import { showWorkflowParametersDialog } from './actions/workflow';
 
-import { setObservers, setMaster, requestControlAction } from './actions/remoteAccess';
+import { setObservers, setMaster, requestControlAction,
+         incChatMessageCount } from './actions/remoteAccess';
 import { doSignOut } from './actions/login';
 
 import { addResponseMessage } from 'react-chat-widget';
@@ -108,6 +110,7 @@ class ServerIO {
       const sid = store.getState().remoteAccess.sid;
       if (record.sid !== sid) {
         addResponseMessage(`${record.date} **${record.user}:** \n\n ${record.message}`);
+        this.dispatch(incChatMessageCount());
       }
     });
 
@@ -194,7 +197,6 @@ class ServerIO {
       if (record.Signal === 'DisableSample') {
         this.dispatch(setSampleAttribute(record.sampleID, 'checked', false));
       } else {
-        window.initJSMpeg();
         this.dispatch(setStatus(record.Signal));
       }
     });
@@ -212,7 +214,6 @@ class ServerIO {
       } else if (record.signal === 'loadReady') {
         this.dispatch(setLoading(false, 'SC Ready',
                                  record.message, true, () => (this.dispatch(sendStopQueue()))));
-        this.dispatch(setCurrentSample(record.location));
       }
     });
 
@@ -277,9 +278,11 @@ class ServerIO {
 
       // Given control
       if (!ra.master) {
-        this.dispatch(setMaster(true, data.name, data.sid));
         this.dispatch(setLoading(true, 'You were given control', data.message));
       }
+
+      this.dispatch(setRootPath(data.rootPath));
+      this.dispatch(setMaster(true, data.name));
     });
 
     this.hwrSocket.on('setObserver', (data) => {
@@ -290,9 +293,10 @@ class ServerIO {
       if (ra.requestingControl) {
         this.dispatch(setLoading(true, 'You were denied control', data.message));
         this.dispatch(requestControlAction(false));
-      } else {
-        this.dispatch(setMaster(false, data.name, data.sid));
       }
+
+      this.dispatch(setRootPath(data.rootPath));
+      this.dispatch(setMaster(false, data.name));
     });
 
     this.hwrSocket.on('take_xtal_snapshot', (unused, cb) => {
@@ -300,7 +304,7 @@ class ServerIO {
     });
 
     this.hwrSocket.on('beamline_action', (data) => {
-      this.dispatch(setActionState(data.name, data.state));
+      this.dispatch(setActionState(data.name, data.state, data.data));
     });
 
     this.hwrSocket.on('sc_state', (state) => {

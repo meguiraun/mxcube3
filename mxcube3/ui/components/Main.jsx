@@ -19,7 +19,6 @@ import { sendChatMessage, getAllChatMessages,
 import { Widget, addResponseMessage, addUserMessage } from 'react-chat-widget';
 import 'react-chat-widget/lib/styles.css';
 import './rachat.css';
-import 'react-chat-widget/lib/styles.css';
 import config from 'guiConfig';
 
 

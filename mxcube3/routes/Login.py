@@ -2,40 +2,19 @@ import logging
 import os
 import Utils
 
-from flask import session, request, jsonify, make_response, Response
+from flask import session, request, jsonify, make_response, Response, redirect
 from mxcube3 import app as mxcube
 from mxcube3 import state_storage
 from mxcube3.routes import qutils
 from mxcube3.routes import limsutils
+from mxcube3.routes import scutils
 from mxcube3 import socketio
-from scandir import scandir
+
 
 from loginutils import (create_user, add_user, remove_user, get_user_by_sid,
                         logged_in_users, deny_access, users, set_operator,
                         get_operator, is_operator, get_observer_name,
                         is_local_host, remote_addr, get_observers)
-
-
-def scantree(path, include):
-    res = []
-
-    try:
-        res = _scantree_rec(path, include, [])
-    except OSError as ex:
-        pass
-
-    return res
-
-
-def _scantree_rec(path, include=[], files=[]):
-    for entry in scandir(path):
-        if entry.is_dir(follow_symlinks=False):
-            _scantree_rec(entry.path, include, files)
-        elif entry.is_file():
-            if os.path.splitext(entry.path)[1][1:] in include:
-                files.append(entry.path)
-
-    return files
 
 
 @mxcube.route("/mxcube/api/v0.1/login", methods=["POST"])
@@ -71,7 +50,7 @@ def login():
                 "inhouse": inhouse}
 
         _users = logged_in_users(exclude_inhouse=True)
-        
+
         # Only allow in-house log-in from local host
         if inhouse and not (inhouse and is_local_host()):
             return deny_access("In-house only allowed from localhost")
@@ -99,7 +78,7 @@ def login():
     except:
         return deny_access("")
     else:
-        add_user(create_user(loginID, remote_addr(), session.sid))
+        add_user(create_user(loginID, remote_addr(), session.sid, login_res))
 
         session['loginInfo'] = {'loginID': loginID,
                                 'password': password,
@@ -108,6 +87,14 @@ def login():
         # Create a new queue just in case any previous queue was not cleared
         # properly
         mxcube.queue = qutils.new_queue()
+
+        sample = mxcube.sample_changer.getLoadedSample()
+
+        # If A sample is mounted, get sample changer contents and add mounted
+        # sample to the queue
+        if sample:
+            scutils.get_sample_list()
+            qutils.queue_add_item([mxcube.CURRENTLY_MOUNTED_SAMPLE])
 
         # For the moment not loading queue from persistent storage (redis),
         # uncomment to enable loading.
@@ -170,7 +157,6 @@ def forcesignout():
     return make_response("", 200)
 
 @mxcube.route("/mxcube/api/v0.1/login_info", methods=["GET"])
-@mxcube.restrict
 def loginInfo():
     """
     Retrieve session/login info
@@ -194,14 +180,6 @@ def loginInfo():
     login_info = session.get("loginInfo")
     proposal_info = session.get("proposal")
 
-    if login_info is not None:
-        login_id = login_info["loginID"]
-
-        if not get_operator():
-            set_opeator(session.sid)
-
-        session['loginInfo'] = login_info
-
     login_info = login_info["loginRes"] if login_info is not None else {}
     login_info = limsutils.convert_to_dict(login_info)
 
@@ -209,36 +187,27 @@ def loginInfo():
            "beamline_name": mxcube.session.beamline_name,
            "loginType": mxcube.db_connection.loginType.title(),
            "loginRes": login_info,
-           "queue": qutils.queue_to_dict(),
            "master": is_operator(session.sid),
            "observerName": get_observer_name()
            }
 
-    # Autoselect proposal
-    if res["loginType"].lower() != 'user' and login_info:
-        limsutils.select_proposal(get_user_by_sid(session.sid)["loginID"])
-        res["selectedProposal"] = get_user_by_sid(session.sid)["loginID"]
-        logging.getLogger('user_log').info('[LIMS] Proposal autoselected.')
+    user = get_user_by_sid(session.sid)
 
-    # elif res["loginType"].lower() == 'user' and login_info and not LOGGED_IN_USER:
-    #     print 'I am here'
-    #     print login_info
-    #     print proposal_info
-    #     selected_proposal = proposal_info.get('code')+proposal_info.get('number')
-    #     limsutils.select_proposal(selected_proposal)
-    #     res["selectedProposal"] = selected_proposal
-    #     LOGGED_IN_USER = login_info.get('loginID') 
+    if user:
+        if res["loginType"].lower() != 'user':
+            res["selectedProposal"] = user["loginID"]
+    else:
+        res["selectedProposal"] = {}
 
-    # Get all the files in the root data dir for this user
-    root_path = mxcube.session.get_base_image_directory()
 
-    if not mxcube.INITIAL_FILE_LIST and os.path.isdir(root_path):
-        ftype = mxcube.beamline.detector_hwobj.getProperty('file_suffix')
+    # Redirect the user to login page if for some reason logged out
+    # i.e. server restart
+    if not user:
+        response = redirect("/login", code=302)
+    else:
+        response = jsonify(res)
 
-        mxcube.INITIAL_FILE_LIST = scantree(root_path, [ftype])
-
-    return jsonify(res)
-
+    return response
 
 @mxcube.route("/mxcube/api/v0.1/send_feedback", methods=["POST"])
 @mxcube.restrict

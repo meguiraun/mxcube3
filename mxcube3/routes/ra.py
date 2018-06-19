@@ -1,17 +1,31 @@
 # -*- coding: utf-8 -*-
 import gevent
-from flask import session, jsonify, Response, request, make_response
+import logging
+from flask import (session, jsonify, Response, request, make_response,
+                   copy_current_request_context)
+
 
 from mxcube3 import socketio
 from mxcube3 import app as mxcube
 from mxcube3.routes import loginutils
-
+from mxcube3.routes import limsutils
 
 @mxcube.route("/mxcube/api/v0.1/ra/request_control", methods=["POST"])
 @mxcube.restrict
 def request_control():
     """
     """
+    @copy_current_request_context
+    def handle_timeout_gives_control(sid, timeout=30):
+        gevent.sleep(timeout)
+
+        if mxcube.TIMEOUT_GIVES_CONTROL:
+            user = loginutils.get_user_by_sid(sid)
+
+            # Pass control to user if still waiting
+            if user.get("requestsControl"):
+                toggle_operator(sid, "Timeout expired, you have control")
+
     data = request.get_json()
     remote_addr = loginutils.remote_addr()
 
@@ -28,23 +42,11 @@ def request_control():
     user["message"] = data["message"]
 
     observers = loginutils.get_observers()
-    gevent.spawn(handle_timeout_gives_control, session.sid, 10)
+    gevent.spawn(handle_timeout_gives_control, session.sid, timeout=10)
 
     socketio.emit("observersChanged", observers, namespace='/hwr')
 
     return make_response("", 200)
-
-
-def handle_timeout_gives_control(sid, timeout=30):
-    gevent.sleep(timeout)
-
-    if mxcube.TIMEOUT_GIVES_CONTROL:
-        user = loginutils.get_user_by_sid(sid)
-
-        # Pass control to user if still waiting
-        if user.get("requestsControl"):
-            toggle_operator(sid, "Timeout expired, you have control")
-
 
 
 @mxcube.route("/mxcube/api/v0.1/ra/take_control", methods=["POST"])
@@ -71,12 +73,6 @@ def take_control():
 def give_control():
     """
     """
-    # Not allowed to give away control if current user is not in
-    # control and a in-house user
-    if loginutils.is_operator(session.sid) and \
-       not session['loginInfo']['loginRes']['Session']['is_inhouse']:
-        return make_response("", 409)
-
     sid = request.get_json().get("sid")
     toggle_operator(sid, "You were given control")
 
@@ -89,12 +85,24 @@ def toggle_operator(new_op_sid, message):
     new_op = loginutils.get_user_by_sid(new_op_sid)
     loginutils.set_operator(new_op["sid"])
     new_op["message"] = message
+    current_op["message"] = message
 
     observers = loginutils.get_observers()
+
+    # Append the new data path so that it can be updated on the client
+    new_op["rootPath"] = mxcube.session.get_base_image_directory()
+    current_op["rootPath"] = mxcube.session.get_base_image_directory()
 
     socketio.emit("observersChanged", observers, namespace='/hwr')
     socketio.emit("setMaster", new_op, room=new_op["socketio_sid"], namespace='/hwr')
     socketio.emit("setObserver", current_op, room=current_op["socketio_sid"], namespace='/hwr')
+
+
+def remain_observer(observer_sid, message):
+    observer = loginutils.get_user_by_sid(observer_sid)
+    observer["message"] = message
+
+    socketio.emit("setObserver", observer, room=observer["socketio_sid"], namespace='/hwr')
 
 
 @mxcube.route("/mxcube/api/v0.1/ra", methods=["GET"])
@@ -160,26 +168,15 @@ def request_control_response():
 
     # Request was denied
     if not data['giveControl']:
-        data["sid"] = session.sid
-
-        # Reset request of observer, since it was denied
-        observers = loginutils.get_observers()
+        remain_observer(new_op["sid"], data["message"])
     else:
-        # Find the user asking for control and remove her from observers
-        # and make her master
-        loginutils.set_operator(new_op["sid"])
-        observers = loginutils.get_observers()
-        new_op["message"] = data["message"]
+        toggle_operator(new_op["sid"], data["message"])
 
     new_op["requestsControl"] = False
 
-    socketio.emit("setMaster", new_op, room=new_op["socketio_sid"], namespace='/hwr')
-    socketio.emit("setObserver", current_op, room=current_op["socketio_sid"], namespace='/hwr')
-    socketio.emit("observersChanged", observers, namespace='/hwr')
-
     return make_response("", 200)
 
-    
+
 @mxcube.route("/mxcube/api/v0.1/ra/chat", methods=["POST"])
 @mxcube.restrict
 def append_message():

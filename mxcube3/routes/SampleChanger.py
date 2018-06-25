@@ -1,6 +1,6 @@
 import signals
 
-from flask import Response, jsonify, request
+from flask import Response, jsonify, request, make_response
 from mxcube3 import app as mxcube
 from . import limsutils
 from . import scutils
@@ -111,9 +111,14 @@ def scan_location(loc):
 @mxcube.route("/mxcube/api/v0.1/sample_changer/mount/<loc>", methods=['GET'])
 @mxcube.restrict
 def mount_sample(loc):
-    scutils.set_sample_to_be_mounted(loc)
-    mxcube.sample_changer.load(loc)
-    set_current_sample(loc)
+    try:
+        scutils.set_sample_to_be_mounted(loc)
+        mxcube.sample_changer.load(loc)
+        set_current_sample(loc)
+    except Exception as ex:
+	return 'Cannot load sample', 409, {'Content-Type': 'application/json',
+					   'message': str(ex)	
+					}
 
     return jsonify(get_sc_contents())
 

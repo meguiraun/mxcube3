@@ -148,7 +148,7 @@ def loaded_sample_changed(sample):
     # If sample is a "No sample loaded value" None or ''
     if sample in [None, '']:
         msg = {'signal': 'loadReady', 'location': ''}
-        socketio.emit('sc', msg, namespace='/hwr')
+        #socketio.emit('sc', msg, namespace='/hwr')
         socketio.emit("loaded_sample_changed", {'address': '', 'barcode': ''}, namespace="/hwr")
     
     # If sample is not Pin, Sample pin just return
@@ -172,7 +172,7 @@ def loaded_sample_changed(sample):
     
         scutils.set_current_sample(sample_data)
         msg = {'signal': 'loadReady', 'location': address}
-        socketio.emit('sc', msg, namespace='/hwr')
+        #socketio.emit('sc', msg, namespace='/hwr')
         socketio.emit("loaded_sample_changed", {'address': address, 'barcode': barcode}, namespace="/hwr")
     except Exception, msg:
         logging.getLogger("HWR").error('error setting loaded sample: %s' + str(msg))

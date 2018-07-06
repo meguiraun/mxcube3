@@ -1,5 +1,6 @@
 module.exports = {
 	phaseControl: true,
+	focusControlOnCanvas: true,
 	apertureControl: true,
 	beamlineCameras: [{
 		url: "http://www.youtube.com/embed/xDMP3i36naA",

@@ -5,7 +5,7 @@ import { QUEUE_RUNNING, QUEUE_PAUSED, QUEUE_STOPPED, QUEUE_STARTED } from '../..
 
 import QueueSettings from '../../containers/QueueSettings.jsx';
 import loader from '../../img/busy-indicator.gif';
-
+import config from 'guiConfig';
 
 export default class QueueControl extends React.Component {
   constructor(props) {
@@ -132,6 +132,15 @@ export default class QueueControl extends React.Component {
       <div className="m-tree">
         <div className="list-head">
           <div className="pull-left">
+            {config.hutchControlVisible ?
+            <Button
+              className="default"
+              style={{ marginRight: '0.6em' }}
+              bsSize="sm"
+              onClick={this.props.sendOpenHutch}
+            >
+              Open Hutch
+            </Button> : null}
             <span style={{ marginRight: '0.6em' }}>
               {queueOptions.map((option) => this.renderOptions(option))}
             </span>

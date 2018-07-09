@@ -107,7 +107,8 @@ export default class SampleQueueContainer extends React.Component {
       showList
     } = this.props.queueGUIActions;
     const {
-      sendPrepareForNewSample
+      sendPrepareForNewSample,
+      sendOpenHutch,
     } = this.props.beamlineActions;
     const {
       sendDeleteShape
@@ -164,6 +165,7 @@ export default class SampleQueueContainer extends React.Component {
           queue={queue}
           sampleList={sampleList}
           sendUnmountSample={sendUnmountSample}
+          sendOpenHutch={sendOpenHutch}
         />
         <div className="m-tree queue-body">
           <Nav

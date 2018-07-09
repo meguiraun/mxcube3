@@ -1,5 +1,6 @@
 module.exports = {
 	phaseControl: true,
+	hutchControlVisible: true,
 	focusControlOnCanvas: true,
 	apertureControl: true,
 	beamlineCameras: [{

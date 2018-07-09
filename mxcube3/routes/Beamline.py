@@ -265,11 +265,27 @@ def prepare_beamline_for_sample():
     """
     Prepare the beamline for a new sample.
     """
-    
+
     try:
         if hasattr(mxcube.collect, 'prepare_for_new_sample'):
             mxcube.collect.prepare_for_new_sample()
     except Exception:
         logging.getLogger('HWR').error('Cannot prepare the Beamline for a new sample')
         return Response(status=200)
+    return Response(status=200)
+
+@mxcube.route("/mxcube/api/v0.1/beamline/open_hutch", methods=['PUT'])
+def prepare_open_hutch():
+    """
+    Prepare the beamline for openning the hutch.
+    """
+    logging.getLogger('HWR').info('Preparing the Beamline for openning the hutch')
+    try:
+        if hasattr(mxcube.collect, 'prepare_open_hutch'):
+            mxcube.collect.prepare_open_hutch()
+    except Exception as ex:
+        logging.getLogger('HWR').error('Cannot prepare the Beamline for openning the hutch; error was %s' % str(ex))
+        return 'Cannot open hutch', 409, {'Content-Type': 'application/json',
+                       'message': str(ex)   
+                    }
     return Response(status=200)

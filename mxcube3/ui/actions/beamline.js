@@ -1,5 +1,5 @@
 import fetch from 'isomorphic-fetch';
-
+import { showErrorPanel } from './general';
 
 // The different states a beamline attribute can assume.
 export const STATE = {
@@ -110,3 +110,20 @@ export function sendPrepareForNewSample() {
   };
 }
 
+
+export function sendOpenHutch() {
+  return function (dispatch) {
+    fetch('mxcube/api/v0.1/beamline/open_hutch', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-type': 'application/json'
+      }
+    }).then(response => {
+      if (response.status > 400) {
+        dispatch(showErrorPanel(true, response.headers.get('message')));
+      }
+    });
+  };
+}

@@ -1,6 +1,6 @@
 module.exports = {
-	phaseControl: true,
-	hutchControlVisible: false,
-	focusControlOnCanvas: true,
+	phaseControl: false,
 	apertureControl: true,
+	focusControlOnCanvas: true,
+	apertureControl: true
 }

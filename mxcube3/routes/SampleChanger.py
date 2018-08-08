@@ -125,6 +125,11 @@ def mount_sample(loc):
 @mxcube.route("/mxcube/api/v0.1/sample_changer/unmount/<loc>", methods=['GET'])
 @mxcube.restrict
 def unmount_sample(loc):
+<<<<<<< HEAD
+=======
+    mxcube.sample_changer.unload(loc, wait=True)
+    set_current_sample(None)
+>>>>>>> upstream/master
     try:
         mxcube.sample_changer.unload(loc, wait=True)
         set_current_sample(None)
@@ -137,6 +142,11 @@ def unmount_sample(loc):
 @mxcube.route("/mxcube/api/v0.1/sample_changer/unmount_current/", methods=['GET'])
 @mxcube.restrict
 def unmount_current():
+<<<<<<< HEAD
+=======
+    mxcube.sample_changer.unload(None, wait=True)
+    set_current_sample(None)
+>>>>>>> upstream/master
     try:
         mxcube.sample_changer.unload(None, wait=True)
         set_current_sample(None)

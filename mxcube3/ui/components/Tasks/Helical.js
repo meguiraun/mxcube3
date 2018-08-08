@@ -202,6 +202,7 @@ Helical = connect(state => {
     path: `${state.queue.rootPath}/${subdir}`,
     filename: fname,
     acqParametersLimits: state.taskForm.acqParametersLimits,
+    beamline: state.beamline,
     initialValues: {
       ...state.taskForm.taskData.parameters,
       beam_size: state.sampleview.currentAperture,
@@ -213,7 +214,10 @@ Helical = connect(state => {
         state.beamline.attributes.energy.value),
       transmission: (state.taskForm.sampleIds.constructor !== Array ?
         state.taskForm.taskData.parameters.transmission :
-        state.beamline.attributes.transmission.value)
+        state.beamline.attributes.transmission.value),
+      osc_start: (state.taskForm.sampleIds.constructor !== Array ?
+        state.taskForm.taskData.parameters.osc_start :
+        state.beamline.motors.phi.position)
     }
   };
 })(Helical);

@@ -108,17 +108,3 @@ export function sendPrepareForNewSample() {
     });
   };
 }
-
-
-export function sendOpenHutch() {
-  return function () {
-    fetch('mxcube/api/v0.1/beamline/open_hutch', {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-type': 'application/json'
-      }
-    });
-  };
-}

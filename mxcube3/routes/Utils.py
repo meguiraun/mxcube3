@@ -9,6 +9,8 @@ import os
 import sys
 import email.Utils
 import smtplib
+from email.mime.text import MIMEText
+from email.utils import make_msgid
 
 from mxcube3 import app as mxcube
 from mxcube3 import socketio
@@ -265,11 +267,26 @@ def send_mail(_from, to, subject, content):
     smtp = smtplib.SMTP('smtp', smtplib.SMTP_PORT)
     date = email.Utils.formatdate(localtime=True)
 
-    email_msg = "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\n\r\n%s" % (
-        _from, to, subject, date, content)
+    msg = MIMEText(content)
+    msg['Subject'] = subject
+    msg['From'] = _from
+    msg['To'] = to
+    msg['Date'] = date
+    msg['Message-ID'] = make_msgid()
+
+    email_msg = msg.as_string()
 
     try:
         error_dict = smtp.sendmail(_from, to.split(','), email_msg)
+
+        if error_dict:
+            msg = "Could not send mail to %s, content %s, error was: %s"
+            msg = msg % (to, content, str(error_dict))
+            logging.getLogger().error(msg)
+        else:
+            msg = "Feedback sent to %s, msg: \n %s" % (to, content)
+            logging.getLogger("HWR").info(msg)
+
     except smtplib.SMTPException, e:
         msg = "Could not send mail to %s, content %s, error was: %s"
         logging.getLogger().error(msg % (to, content, str(e)))
@@ -293,12 +310,15 @@ def send_feedback(sender_data):
         except (KeyError):
             local_user = "unknown_user"
 
-    _from = "%s@%s" % (local_user,
-                       mxcube.session.getProperty("email_extension", ""))
+    _from = mxcube.session.getProperty("from_email", "")
+
+    if not _from:
+        _from = "%s@%s" % (local_user,
+                           mxcube.session.getProperty("email_extension", ""))
 
     # Sender information provided by user
     _sender = sender_data.get("sender", "")
-    to = mxcube.session.getProperty("feedback_email", "")
+    to = mxcube.session.getProperty("feedback_email", "") + ',%s' % _sender
     subject="[MX3 FEEDBACK] %s (%s) on %s" % (local_user, _sender, bl_name)
     content = sender_data.get("content", "")
 

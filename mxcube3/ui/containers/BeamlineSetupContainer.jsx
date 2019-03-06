@@ -5,6 +5,7 @@ import { Row, Col, Table } from 'react-bootstrap';
 import PopInput from '../components/PopInput/PopInput';
 import BeamlineActions from './BeamlineActionsContainer';
 import InOutSwitch2 from '../components/InOutSwitch2/InOutSwitch2';
+import SampleChangerSwitch from '../components/SampleChangerSwitch/SampleChangerSwitch';
 import LabeledValue from '../components/LabeledValue/LabeledValue';
 import MachInfo from '../components/MachInfo/MachInfo';
 
@@ -12,6 +13,7 @@ import { sendGetAllAttributes,
          sendSetAttribute,
          sendAbortCurrentAction } from '../actions/beamline';
 
+import { sendCommand } from '../actions/sampleChanger';
 
 class BeamlineSetupContainer extends React.Component {
   constructor(props) {
@@ -218,12 +220,10 @@ class BeamlineSetupContainer extends React.Component {
               </Col>
               {this.createActuatorComponent()}
               <Col sm={2} className="pull-right">
-                <LabeledValue
-                  suffix=""
-                  name="Sample changer"
-                  value={this.props.sampleChanger.state}
-                  level={this.props.sampleChanger.state === 'READY' ? 'info' : 'warning'}
-                  look={"vertical"}
+                <SampleChangerSwitch
+                  labelText={ "Sample Changer" }
+                  data = { this.props.sampleChanger.state }
+                  onSave={ this.props.sendCommand }
                 />
               </Col>
             </Col>
@@ -247,6 +247,7 @@ function mapDispatchToProps(dispatch) {
   return {
     getAllAttributes: bindActionCreators(sendGetAllAttributes, dispatch),
     setAttribute: bindActionCreators(sendSetAttribute, dispatch),
+    sendCommand: bindActionCreators(sendCommand, dispatch),
     abortCurrentAction: bindActionCreators(sendAbortCurrentAction, dispatch)
   };
 }

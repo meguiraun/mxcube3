@@ -6,6 +6,7 @@
   <object href="/minidiff-mockup" role="diffractometer"/>
   <object href="/beamstop" role="beamstop"/>
   <object href="/safety_shutter" role="safety_shutter"/>
+  <object href="/temperature_controller" role="temperature_controller"/>
   <object href="/udiff_omega" role="omega_axis"/>
   <object href="/udiff_kappa" role="kappa_axis"/>
   <object href="/udiff_kappaphi" role="kappa_phi_axis"/>

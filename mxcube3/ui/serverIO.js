@@ -12,7 +12,8 @@ import {
   setCurrentPhase
 } from './actions/sampleview';
 import { setBeamlineAttrAction,
-         setMachInfo } from './actions/beamline';
+         setMachInfo,
+         setTemperatureValue } from './actions/beamline';
 import { setActionState,
          newPlot,
          plotData,
@@ -132,6 +133,11 @@ class ServerIO {
 
     this.hwrSocket.on('beam_changed', (record) => {
       this.dispatch(setBeamInfo(record.data));
+    });
+
+    this.hwrSocket.on('temperature_changed', (record) => {
+      console.log('BOOO', record);
+      this.dispatch(setTemperatureValue(record));
     });
 
     this.hwrSocket.on('mach_info_changed', (info) => {

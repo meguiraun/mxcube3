@@ -166,7 +166,13 @@ export const INITIAL_STATE = {
   plotsInfo: {},
   plotsData: {},
   availableMethods: {},
-  energyScanElements: []
+  energyScanElements: [],
+  temperature: {
+    name: 'temperature',
+    value: '0',
+    state: 'READY',
+    powered: true
+  }
 };
 
 
@@ -177,6 +183,13 @@ export default (state = INITIAL_STATE, action) => {
     case 'BL_ATTR_GET_ALL':
       return Object.assign({}, state, action.data);
 
+    case 'BL_ATTR_GET_TEMPERATURE':
+      return { ...state, temperature: { ...action.data } };
+
+    case 'BL_ATTR_SET_TEMPERATURE':
+      { console.log('BL_ATTR_SET_TEMPERATURE', action.data);
+        return { ...state, temperature: { ...action.data } };
+      }
     case 'BL_ATTR_SET':
       {
         const attrData = Object.assign(state.attributes[action.data.name] || {}, action.data);

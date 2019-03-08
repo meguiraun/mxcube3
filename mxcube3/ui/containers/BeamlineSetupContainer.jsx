@@ -5,6 +5,7 @@ import { Row, Col, Table } from 'react-bootstrap';
 import PopInput from '../components/PopInput/PopInput';
 import BeamlineActions from './BeamlineActionsContainer';
 import InOutSwitch2 from '../components/InOutSwitch2/InOutSwitch2';
+import TemperatureController from '../components/TemperatureController/TemperatureController';
 import LabeledValue from '../components/LabeledValue/LabeledValue';
 import MachInfo from '../components/MachInfo/MachInfo';
 
@@ -90,6 +91,9 @@ class BeamlineSetupContainer extends React.Component {
           <Row style={{ display: 'flex', alignItems: 'center' }}>
             <Col sm={1}>
               <BeamlineActions actionsList={this.props.data.beamlineActionsList} />
+            </Col>
+            <Col sm={1}>
+              <TemperatureController />
             </Col>
             <Col sm={5} smPush={1}>
               <Table

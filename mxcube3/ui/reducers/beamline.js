@@ -166,7 +166,13 @@ export const INITIAL_STATE = {
   plotsInfo: {},
   plotsData: {},
   availableMethods: {},
-  energyScanElements: []
+  energyScanElements: [],
+  temperature: {
+    name: 'temperature',
+    value: '0',
+    state: 'READY',
+    powered: true
+  }
 };
 
 

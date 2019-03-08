@@ -46,6 +46,15 @@ def init_signals():
         logging.getLogger('HWR').error("error loading safety_shutter hwo: %s" % str(ex))
 
     try:
+        #TODO: load temperature controller hwobj
+        #TODO link temperature change events
+        pass
+
+    except Exception, ex:
+        logging.getLogger('HWR').error("error loading temperature controller hwo: %s" % str(ex))
+
+
+    try:
         mxcube.plotting.connect(mxcube.plotting, 'new_plot', signals.new_plot)
         mxcube.plotting.connect(mxcube.plotting, 'plot_data', signals.plot_data)
         mxcube.plotting.connect(mxcube.plotting, 'plot_end', signals.plot_end)
@@ -273,3 +282,19 @@ def prepare_beamline_for_sample():
         logging.getLogger('HWR').error('Cannot prepare the Beamline for a new sample')
         return Response(status=200)
     return Response(status=200)
+
+@mxcube.route("/mxcube/api/v0.1/beamline/temperature_controller", methods=['GET'])
+def get_temperature():
+    """
+    Retrieve temperature info from the hwobj,
+    """
+    #TODO: get value, parse and return
+    pass
+
+@mxcube.route("/mxcube/api/v0.1/beamline/temperature_controller", methods=['PUT'])
+def set_temperature():
+    """
+    Set new temperature setpoint
+    """
+    #TODO: set new value, return ok or error
+    pass

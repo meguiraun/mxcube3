@@ -10,6 +10,8 @@ export const STATE = {
 // Action types
 export const BL_ATTR_SET = 'BL_ATTR_SET';
 export const BL_ATTR_GET_ALL = 'BL_ATTR_GET_ALL';
+export const BL_ATTR_GET_TEMPERATURE = 'BL_ATTR_GET_TEMPERATURE';
+export const BL_ATTR_SET_TEMPERATURE = 'BL_ATTR_SET_TEMPERATURE';
 export const BL_ATTR_SET_STATE = 'BL_ATTR_SET_STATE';
 export const BL_ATTR_MOV_SET_STATE = 'BL_ATTR_MOV_SET_STATE';
 export const BL_ATTR_ACT_SET_STATE = 'BL_ATTR_ACT_SET_STATE';
@@ -23,6 +25,14 @@ export function setBeamlineAttrAction(data) {
 
 export function getBeamlineAttrsAction(data) {
   return { type: BL_ATTR_GET_ALL, data };
+}
+
+export function getTemperature(data) {
+  return { type: BL_ATTR_GET_TEMPERATURE, data };
+}
+
+export function setTemperatureValue(data) {
+  return { type: BL_ATTR_GET_TEMPERATURE, data };
 }
 
 export function setMachInfo(info) {
@@ -56,6 +66,10 @@ export function sendGetAllAttributes() {
   };
 }
 
+export function sendGetTemperature() {
+  // TODO: fetc the temperature from the API url
+  // TODO: dispach an action (see above)
+}
 
 export function sendSetAttribute(name, value) {
   const url = `mxcube/api/v0.1/beamline/${name}`;

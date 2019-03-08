@@ -88,6 +88,10 @@ def diffractometer_phase_changed(*args):
     logging.getLogger('user_level_log').info('Diffractometer phase changed to %s' %args)
     socketio.emit('diff_phase_changed', data, namespace='/hwr')
 
+def temperature_value_changed(*args):
+    #TODO: formar value and emit, pay attention to the keyword
+    pass
+
 def sc_state_changed(*args):
     new_state = args[0]
     old_state = None

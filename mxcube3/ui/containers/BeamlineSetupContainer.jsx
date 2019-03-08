@@ -5,12 +5,14 @@ import { Row, Col, Table } from 'react-bootstrap';
 import PopInput from '../components/PopInput/PopInput';
 import BeamlineActions from './BeamlineActionsContainer';
 import InOutSwitch2 from '../components/InOutSwitch2/InOutSwitch2';
+import TemperatureController from '../components/TemperatureController/TemperatureController';
 import LabeledValue from '../components/LabeledValue/LabeledValue';
 import MachInfo from '../components/MachInfo/MachInfo';
 
 import { sendGetAllAttributes,
          sendSetAttribute,
-         sendAbortCurrentAction } from '../actions/beamline';
+         sendAbortCurrentAction,
+         sendGetTemperature } from '../actions/beamline';
 
 
 class BeamlineSetupContainer extends React.Component {
@@ -26,6 +28,7 @@ class BeamlineSetupContainer extends React.Component {
 
   componentDidMount() {
     this.props.getAllAttributes();
+    this.props.getTemperature();
   }
 
 
@@ -90,6 +93,9 @@ class BeamlineSetupContainer extends React.Component {
           <Row style={{ display: 'flex', alignItems: 'center' }}>
             <Col sm={1}>
               <BeamlineActions actionsList={this.props.data.beamlineActionsList} />
+            </Col>
+            <Col sm={1}>
+              <TemperatureController data={this.props.data.temperature} />
             </Col>
             <Col sm={5} smPush={1}>
               <Table
@@ -246,6 +252,7 @@ function mapStateToProps(state) {
 function mapDispatchToProps(dispatch) {
   return {
     getAllAttributes: bindActionCreators(sendGetAllAttributes, dispatch),
+    getTemperature: bindActionCreators(sendGetTemperature, dispatch),
     setAttribute: bindActionCreators(sendSetAttribute, dispatch),
     abortCurrentAction: bindActionCreators(sendAbortCurrentAction, dispatch)
   };

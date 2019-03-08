@@ -46,6 +46,17 @@ def init_signals():
         logging.getLogger('HWR').error("error loading safety_shutter hwo: %s" % str(ex))
 
     try:
+        temperature_controller = mxcube.beamline.getObjectByRole("temperature_controller")
+        if temperature_controller is not None:
+            temperature_controller.connect(temperature_controller, 'temperatureValueChanged',
+                           signals.temperature_value_changed)
+        else:
+            logging.getLogger('HWR').error("safety_shutter is not defined")
+    except Exception, ex:
+        logging.getLogger('HWR').error("error loading safety_shutter hwo: %s" % str(ex))
+
+
+    try:
         mxcube.plotting.connect(mxcube.plotting, 'new_plot', signals.new_plot)
         mxcube.plotting.connect(mxcube.plotting, 'plot_data', signals.plot_data)
         mxcube.plotting.connect(mxcube.plotting, 'plot_end', signals.plot_end)
@@ -272,4 +283,28 @@ def prepare_beamline_for_sample():
     except Exception:
         logging.getLogger('HWR').error('Cannot prepare the Beamline for a new sample')
         return Response(status=200)
+    return Response(status=200)
+
+@mxcube.route("/mxcube/api/v0.1/beamline/temperature_controller", methods=['GET'])
+def get_temperature():
+    """
+    Retrieve temperature info from the hwobj,
+    """
+    temperature_controller = mxcube.beamline.getObjectByRole("temperature_controller")
+    print temperature_controller
+    data = temperature_controller.getStateDict()
+    data['value'] = "{0:.2f}".format(data['value'])
+    print data
+    return jsonify(data)
+
+@mxcube.route("/mxcube/api/v0.1/beamline/custom_equipment", methods=['PUT'])
+def set_temperature():
+    """
+    Set new temperature setpoint
+    """
+    data = json.loads(request.data)
+    temperature_controller = mxcube.beamline.getObjectByRole("temperature_controller")
+    temperature_controller.setTemperature(data["value"])
+    data = temperature_controller.getStateDict()
+    print data
     return Response(status=200)
